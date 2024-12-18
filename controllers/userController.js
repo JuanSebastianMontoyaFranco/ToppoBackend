@@ -6,7 +6,7 @@ exports.create = async (req, res, next) => {
         const user = await db.user.findOne({ where: { email: req.body.email } });
         if (user) {
             return res.status(200).send({
-                error: 'El correo electrónico ya se encuentra en uso.'
+                message: 'El correo electrónico ya se encuentra en uso.'
             });
         } else {
             req.body.password = bcrypt.hashSync(req.body.password, 10);
@@ -40,8 +40,8 @@ exports.create = async (req, res, next) => {
         }
     } catch (error) {
         return res.status(500).send({
-            error: '¡Error en el servidor!',
-            message: error.message
+            message: '¡Error en el servidor!',
+            error: error.message
         });
     }
 };

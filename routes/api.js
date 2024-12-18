@@ -1,7 +1,11 @@
 const router = require('express').Router();
-const UsersRouter = require('./api/users');
+const usersRouter = require('./api/users');
+const transactionRouter = require('./api/transactions')
 
-//USERS
-router.use('/user', UsersRouter);
+// Users
+router.use('/user', usersRouter);
+
+// Transactions
+router.use('/transaction', transactionRouter)
 
 module.exports = router;

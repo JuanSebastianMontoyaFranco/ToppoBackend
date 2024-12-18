@@ -24,10 +24,14 @@ exports.create = async (req, res, next) => {
       }
     }
 
-    res.status(200).json({ totalCiudades });
+    res.status(200).json({
+      message: 'Ciudades creadas con éxito',
+      total: totalCiudades
+    });
   } catch (error) {
     res.status(500).send({
-      error: '¡Error en el servidor!'
+      message: '¡Error en el servidor!',
+      error: error.message
     });
     next(error);
   }
@@ -88,13 +92,10 @@ async function createOrUpdateCities(cityData) {
 
 exports.list = async (req, res, next) => {
   try {
-    console.log("Iniciando consulta de ciudades por departamento...");
     const result = await db.all_city.findAll({
       attributes: ['department_desc', 'city_desc'],
       raw: true // Para obtener resultados como objetos de JavaScript puros
     });
-
-    console.log("Consulta exitosa. Enviando respuesta...");
     if (result.length !== 0) {
       // Organizar las ciudades por departamento
       const citiesByDepartment = {};
@@ -108,16 +109,22 @@ exports.list = async (req, res, next) => {
           citiesByDepartment[department].push(cityData);
         }
       });
-      
-      res.status(200).json(citiesByDepartment);
+
+      res.status(200).json({
+        rows: citiesByDepartment
+      });
     } else {
       console.log("No se encontraron registros en el sistema.");
       res.status(404).send({
-        error: 'No hay registros en el sistema.'
+        rows: [],
+        total: 0,
+        message: 'No hay registros en el sistema.'
       });
     }
-  } catch (err) {
-    console.error("Error en el servidor:", err);
-    return res.status(500).json({ error: '¡Error en el servidor!' });
+  } catch (error) {
+    console.error("Error en el servidor:", error);
+    return res.status(500).json({
+      error: '¡Error en el servidor!'
+    });
   }
 }

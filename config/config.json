@@ -1,0 +1,9 @@
+{
+    "development": {
+        "username": "admin",
+        "password": "elvecinodelaabueladeoritorion",
+        "database": "toppo_stage",
+        "host": "oritdefault.ccmlpmecr0so.us-east-1.rds.amazonaws.com",
+        "dialect": "mysql"
+    }
+}

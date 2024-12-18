@@ -4,6 +4,8 @@ const transactionRouter = require('./api/transactions')
 const orderRouter = require('./api/orders')
 const credentialRouter = require('./api/credentials')
 const functionRouter = require('./api/functions')
+const parameterRouter = require('./api/parameters')
+const cityRouter = require('./api/cities')
 
 // Users
 router.use('/user', usersRouter);
@@ -19,6 +21,12 @@ router.use('/credential', credentialRouter)
 
 // Functions
 router.use('/function', functionRouter)
+
+// Parameters
+router.use('/parameter', parameterRouter)
+
+// Cities
+router.use('/city', cityRouter)
 
 
 module.exports = router;

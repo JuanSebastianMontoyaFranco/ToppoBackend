@@ -79,7 +79,8 @@ exports.listById = async (req, res, next) => {
                 user_id: user_id
             }
         });
-        if (credentials.count !== 0) {
+
+        if (credentials.length !== 0) {
             res.status(200).json({
                 rows: credentials
             });

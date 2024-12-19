@@ -85,7 +85,7 @@ exports.getUserId = async (orderStatusUrl) => {
 
 exports.getTransactionId = async (orderId, confirmationNumber) => {
     try {
-        const transaction = await db.order_transaction.findOne({
+        const transaction = await db.transaction.findOne({
             where: {
                 order_id: orderId,
             },

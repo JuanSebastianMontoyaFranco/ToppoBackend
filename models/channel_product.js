@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     channel_product.init({
         product_id: DataTypes.INTEGER,
         channel_id: DataTypes.INTEGER,
+        ecommerce_id: DataTypes.STRING,
     }, {
         sequelize,
         modelName: 'channel_product',

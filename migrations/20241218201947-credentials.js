@@ -26,7 +26,7 @@ module.exports = {
       store_domain: {
         type: Sequelize.STRING,
       },
-      domain_shopify: {
+      shopify_domain: {
         type: Sequelize.STRING,
       },
       token_shopify: {

@@ -16,8 +16,7 @@ module.exports = (sequelize, DataTypes) => {
     city: DataTypes.STRING,
   }, {
     sequelize,
-    modelName: 'all_city',
-    timestamps: false, 
+    modelName: 'all_city'
   });
   return all_city;
 };

@@ -6,6 +6,8 @@ const credentialRouter = require('./api/credentials')
 const functionRouter = require('./api/functions')
 const parameterRouter = require('./api/parameters')
 const cityRouter = require('./api/cities')
+const productRouter = require('./api/products')
+const priceListRouter = require('./api/priceLists')
 
 // Users
 router.use('/user', usersRouter);
@@ -28,5 +30,10 @@ router.use('/parameter', parameterRouter)
 // Cities
 router.use('/city', cityRouter)
 
+// Products
+router.use('/product', productRouter)
+
+// Price List
+router.use('/pricelist', priceListRouter)
 
 module.exports = router;

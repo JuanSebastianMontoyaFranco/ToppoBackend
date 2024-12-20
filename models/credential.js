@@ -17,7 +17,7 @@ module.exports = (sequelize, DataTypes) => {
     user_id: DataTypes.INTEGER,
     main: DataTypes.INTEGER,
     store_domain: DataTypes.STRING,
-    domain_shopify: DataTypes.STRING,
+    shopify_domain: DataTypes.STRING,
     token_shopify: DataTypes.STRING,
     token_serpi: DataTypes.TEXT,
     secret_key_serpi: DataTypes.STRING,

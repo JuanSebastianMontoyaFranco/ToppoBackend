@@ -6,6 +6,9 @@ module.exports = (sequelize, DataTypes) => {
     class variant extends Model {
         static associate(models) {
             variant.belongsTo(models.product, { foreignKey: 'product_id' });
+
+            variant.hasMany(models.price, { foreignKey: 'variant_id' });
+
         }
     };
     variant.init({

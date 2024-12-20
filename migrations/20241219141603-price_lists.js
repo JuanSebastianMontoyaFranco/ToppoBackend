@@ -19,6 +19,9 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      default: {
+        type: Sequelize.BOOLEAN,
+      },
       name: {
         type: Sequelize.STRING,
       },

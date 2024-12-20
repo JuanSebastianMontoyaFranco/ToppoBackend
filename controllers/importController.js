@@ -2,6 +2,7 @@ const db = require('../models');
 const axios = require('axios');
 const getEncryptedText = require('../utils/encrypt');
 
+
 exports.importHistoweb = async (req, res, next) => {
     const { user_id } = req.params;
 
@@ -13,7 +14,7 @@ exports.importHistoweb = async (req, res, next) => {
             return res.status(404).json({ error: 'No se encontraron credenciales para el usuario especificado.' });
         }
 
-        const { token_histoweb, url_histoweb_products } = credentials;
+        const { token_histoweb, url_histoweb_products, url_histoweb_services } = credentials;
 
         if (!token_histoweb || !url_histoweb_products) {
             return res.status(400).json({ error: 'Las credenciales están incompletas.' });
@@ -184,7 +185,7 @@ exports.importHistoweb = async (req, res, next) => {
                 existingPrice.price = price;
             }
 
-            if (parseFloat(existingPrice.compare_at_price) !== compareAtPrice) {
+            if (compareAtPrice && parseFloat(existingPrice.compare_at_price) !== compareAtPrice) {
                 changes.push({
                     field: 'compare_at_price',
                     oldValue: existingPrice.compare_at_price,

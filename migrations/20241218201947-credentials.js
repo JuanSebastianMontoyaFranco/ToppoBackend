@@ -20,7 +20,10 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
-      main: {
+      product_main: {
+        type: Sequelize.INTEGER
+      },
+      order_main: {
         type: Sequelize.INTEGER
       },
       store_domain: {

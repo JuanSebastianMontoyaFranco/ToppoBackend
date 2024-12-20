@@ -15,7 +15,8 @@ module.exports = (sequelize, DataTypes) => {
   };
   credential.init({
     user_id: DataTypes.INTEGER,
-    main: DataTypes.INTEGER,
+    product_main: DataTypes.INTEGER,
+    order_main: DataTypes.INTEGER,
     store_domain: DataTypes.STRING,
     shopify_domain: DataTypes.STRING,
     token_shopify: DataTypes.STRING,

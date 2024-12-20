@@ -13,8 +13,8 @@ module.exports = (sequelize, DataTypes) => {
     price.init({
         variant_id: DataTypes.INTEGER,
         price_list_id: DataTypes.INTEGER,
-        price: DataTypes.DECIMAL,
-        compare_at_price: DataTypes.DECIMAL,
+        price: DataTypes.FLOAT,
+        compare_at_price: DataTypes.FLOAT,
         currency: DataTypes.STRING,
     }, {
         sequelize,

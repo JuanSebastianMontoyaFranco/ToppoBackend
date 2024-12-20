@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
         }
     };
     variant.init({
+        sku: DataTypes.STRING,
         title: DataTypes.STRING,
         option_1: DataTypes.STRING,
         option_2: DataTypes.STRING,

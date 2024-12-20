@@ -8,6 +8,7 @@ const parameterRouter = require('./api/parameters')
 const cityRouter = require('./api/cities')
 const productRouter = require('./api/products')
 const priceListRouter = require('./api/priceLists')
+const importRouter = require('./api/imports')
 
 // Users
 router.use('/user', usersRouter);
@@ -35,5 +36,9 @@ router.use('/product', productRouter)
 
 // Price List
 router.use('/pricelist', priceListRouter)
+
+// Import
+router.use('/import', importRouter)
+
 
 module.exports = router;

@@ -29,13 +29,13 @@ module.exports = {
         onDelete: 'CASCADE'
       },
       price: {
-        type: Sequelize.DECIMAL(10, 2),
+        type: Sequelize.FLOAT,
       },
       compare_at_price: {
-        type: Sequelize.DECIMAL(10, 2),
+        type: Sequelize.FLOAT,
       },
       currency: {
-        type: Sequelize.DECIMAL(10, 2)
+        type: Sequelize.STRING
       },
       createdAt: {
         allowNull: false,

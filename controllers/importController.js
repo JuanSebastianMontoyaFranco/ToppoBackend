@@ -107,42 +107,44 @@ exports.importHistoweb = async (req, res, next) => {
                     // Si existe el precio y es diferente, actualizamos
                     const changes = [];
 
-                    // Compara el precio anterior con el nuevo
-                    if (parseFloat(existingPrice.price).toFixed(2) !== price || parseFloat(existingPrice.compare_at_price).toFixed(2) !== compareAtPrice) {
-                        if (parseFloat(existingPrice.price).toFixed(2) !== price) {
-                            changes.push({
-                                field: 'price',
-                                oldValue: existingPrice.price,
-                                newValue: price,
-                            });
-                            existingPrice.price = price;
-                        }
+                    // Comparar precios y registrar cambios
+                    if (parseFloat(existingPrice.price).toFixed(2) !== price) {
+                        changes.push({
+                            field: 'price',
+                            oldValue: existingPrice.price,
+                            newValue: parseFloat(price),
+                        });
+                        existingPrice.price = price;
+                    }
 
-                        // Compara el compare_at_price anterior con el nuevo
-                        if (compareAtPrice && parseFloat(existingPrice.compare_at_price).toFixed(2) !== compareAtPrice) {
-                            changes.push({
-                                field: 'compare_at_price',
-                                oldValue: existingPrice.compare_at_price,
-                                newValue: compareAtPrice,
-                            });
-                            existingPrice.compare_at_price = compareAtPrice;
-                        }
+                    if (
+                        compareAtPrice &&
+                        parseFloat(existingPrice.compare_at_price || 0).toFixed(2) !== compareAtPrice
+                    ) {
+                        changes.push({
+                            field: 'compare_at_price',
+                            oldValue: existingPrice.compare_at_price,
+                            newValue: parseFloat(compareAtPrice),
+                        });
+                        existingPrice.compare_at_price = compareAtPrice;
+                    }
 
-                        // Guardar los cambios solo si hay alguna diferencia
-                        for (const change of changes) {
-                            if (change.oldValue !== change.newValue) {
-                                await db.change_log.create({
+                    // Guardar cambios solo si hay diferencias
+                    if (changes.length > 0) {
+                        await Promise.all(
+                            changes.map((change) =>
+                                db.change_log.create({
                                     product_id: existingProduct.id,
                                     variant_id: variant.id,
+                                    price_list_id: defaultPriceList.id,
                                     field: change.field,
                                     oldValue: change.oldValue,
                                     newValue: change.newValue,
-                                });
-                            }
-                        }
+                                })
+                            )
+                        );
 
-                        // Guardar los cambios en la base de datos
-                        existingPrice.updatedAt = new Date(); // Marca el tiempo de actualización
+                        existingPrice.updatedAt = new Date();
                         await existingPrice.save();
                         console.log(`Precio actualizado para el SKU ${product.sku}`);
                     }
@@ -176,35 +178,19 @@ exports.importHistoweb = async (req, res, next) => {
                 existingProduct.title = product.name;
             }
 
-            if (parseFloat(existingPrice.price) !== price) {
-                changes.push({
-                    field: 'price',
-                    oldValue: existingPrice.price,
-                    newValue: parseFloat(price),
-                });
-                existingPrice.price = price;
-            }
-
-            if (compareAtPrice && parseFloat(existingPrice.compare_at_price) !== compareAtPrice) {
-                changes.push({
-                    field: 'compare_at_price',
-                    oldValue: existingPrice.compare_at_price,
-                    newValue: parseFloat(compareAtPrice),
-                });
-                existingPrice.compare_at_price = compareAtPrice;
-            }
-
             // Registrar cambios en la tabla change_logs solo si hay alguna diferencia
-            for (const change of changes) {
-                if (change.oldValue !== change.newValue) {
-                    await db.change_log.create({
-                        product_id: existingProduct.id,
-                        variant_id: variant.id,
-                        field: change.field,
-                        oldValue: change.oldValue,
-                        newValue: change.newValue,
-                    });
-                }
+            if (changes.length > 0) {
+                await Promise.all(
+                    changes.map((change) =>
+                        db.change_log.create({
+                            product_id: existingProduct.id,
+                            variant_id: variant.id,
+                            field: change.field,
+                            oldValue: change.oldValue,
+                            newValue: change.newValue,
+                        })
+                    )
+                );
             }
 
             console.log('Cambios registrados:', changes);

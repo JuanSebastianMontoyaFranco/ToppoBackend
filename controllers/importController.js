@@ -257,7 +257,7 @@ exports.importSerpi = async function (req, res, next) {
 
         console.log(branch_serpi);
         console.log(price_list_serpi);
-        
+
 
         // Definir URLs de las APIs
         let API_article = 'https://apis.serpi.com.co/api/v1/Articulo';
@@ -447,35 +447,156 @@ exports.importSerpi = async function (req, res, next) {
                 }).filter(product => product !== null);
 
             // Limitar a solo los primeros dos productos
-            const limitedProducts = transformedProducts.slice(0, 2);
+            const selectedData = transformedProducts.slice(0, 2);
+
+            const allProcessedItems = [];
 
             // Guardar o actualizar los productos y sus variantes
-            for (const productData of limitedProducts) {
-                try {
-                    const existingVariantLocal = await db.variant.findOne({
-                        where: { sku: productData.variants[0].sku } // Aquí eliminamos user_id
+            for (const item of selectedData) {
+
+                console.log("Item antes de buscar variante:", item);
+
+                const variant = await db.variant.findOne({
+                    where: { sku: item.variants[0].sku },
+                    include: [{ model: db.product, where: { user_id } }],
+                });
+
+                if (!variant) {
+                    // Crear producto y variante
+                    const newProduct = await db.product.create({
+                        title: item.title,
+                        user_id: item.user_id,
+                        product_type: item.product_type,
                     });
 
-                    if (!existingVariantLocal) {
-                        await db.variant.create(productData.variants[0]);
-                        await db.product.create({
-                            ...productData,
-                            variant_id: productData.variants[0].id
-                        });
-                    } else {
-                        await db.variant.update(productData.variants[0], {
-                            where: { sku: productData.variants[0].sku } // Aquí también
-                        });
-                        await db.product.update({
-                            ...productData,
-                            variant_id: existingVariantLocal.id
-                        }, {
-                            where: { id: existingVariantLocal.product_id }
+                    const newVariant = await db.variant.create({
+                        product_id: newProduct.id,
+                        sku: item.variants[0].sku,
+                        price: item.variants[0].price,
+                        compare_at_price: item.variants[0].compare_at_price,
+                        requires_shipping: item.variants[0].requires_shipping,
+                    });
+
+                    // Asignar precios en todas las listas de precios
+                    const priceLists = await db.price_list.findAll({
+                        where: { user_id },
+                    });
+
+                    for (const priceList of priceLists) {
+                        await db.price.create({
+                            variant_id: newVariant.id,
+                            price_list_id: priceList.id,
+                            price: item.variants[0].price,
+                            compare_at_price: item.variants[0].compare_at_price,
+                            currency: 'COP',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
                         });
                     }
-                } catch (error) {
-                    console.error("Error al guardar el producto o variante:", error);
+
+                    allProcessedItems.push(newProduct);
+                    continue;
                 }
+
+                const existingProduct = variant.product;
+
+                // Actualizar precios en la lista de precios predeterminada
+                const defaultPriceList = await db.price_list.findOne({
+                    where: { user_id, default: true },
+                });
+
+                if (defaultPriceList) {
+                    const existingPrice = await db.price.findOne({
+                        where: { variant_id: variant.id, price_list_id: defaultPriceList.id },
+                    });
+
+                    console.log('PRECIO EXISTENTE:', existingPrice);
+
+
+                    if (existingPrice) {
+                        const changes = [];
+
+                        if (parseFloat(existingPrice.price).toFixed(2) !== parseFloat(item.variants[0].price).toFixed(2)) {
+                            changes.push({
+                                field: 'price',
+                                oldValue: existingPrice.price,
+                                newValue: item.variants[0].price,
+                            });
+                            existingPrice.price = item.variants[0].price;
+                        }
+
+                        if (
+                            item.variants[0].compare_at_price &&
+                            parseFloat(existingPrice.compare_at_price || 0).toFixed(2) !== parseFloat(item.variants[0].compare_at_price).toFixed(2)
+                        ) {
+                            changes.push({
+                                field: 'compare_at_price',
+                                oldValue: existingPrice.compare_at_price,
+                                newValue: item.variants[0].compare_at_price,
+                            });
+                            existingPrice.compare_at_price = item.variants[0].compare_at_price;
+                        }
+
+                        if (changes.length > 0) {
+                            await Promise.all(
+                                changes.map((change) =>
+                                    db.change_log.create({
+                                        product_id: existingProduct.id,
+                                        variant_id: variant.id,
+                                        price_list_id: defaultPriceList.id,
+                                        field: change.field,
+                                        oldValue: change.oldValue,
+                                        newValue: change.newValue,
+                                    })
+                                )
+                            );
+
+                            existingPrice.updatedAt = new Date();
+                            await existingPrice.save();
+                        }
+                    } else {
+                        await db.price.create({
+                            variant_id: variant.id,
+                            price_list_id: defaultPriceList.id,
+                            price,
+                            compare_at_price: compareAtPrice,
+                            currency: 'COP',
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        });
+                    }
+                }
+
+                const changes = [];
+
+                if (existingProduct.title !== item.title) {
+                    changes.push({
+                        field: 'title',
+                        oldValue: existingProduct.title,
+                        newValue: item.title,
+                    });
+                    existingProduct.title = item.title;
+                }
+
+                if (changes.length > 0) {
+                    await Promise.all(
+                        changes.map((change) =>
+                            db.change_log.create({
+                                product_id: existingProduct.id,
+                                variant_id: variant.id,
+                                field: change.field,
+                                oldValue: change.oldValue,
+                                newValue: change.newValue,
+                            })
+                        )
+                    );
+                }
+
+                await existingProduct.save();
+                await variant.save();
+
+                allProcessedItems.push(existingProduct);
+
             }
         }
 

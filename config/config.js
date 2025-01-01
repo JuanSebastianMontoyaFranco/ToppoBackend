@@ -15,6 +15,8 @@ module.exports = {
         "database": 'toppo',
         "host": 'oritdefault.ccmlpmecr0so.us-east-1.rds.amazonaws.com',
         "dialect": 'mysql',
+        "timezone": "-05:00", // Huso horario de Colombia
+
     },
     "production": {
         "username": 'admin',
@@ -22,6 +24,7 @@ module.exports = {
         "database": 'toppo',
         "host": 'oritdefault.ccmlpmecr0so.us-east-1.rds.amazonaws.com',
         "dialect": 'mysql',
+        "timezone": "-05:00", // Huso horario de Colombia
     }
 }
 

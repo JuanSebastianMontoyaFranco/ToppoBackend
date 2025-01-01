@@ -9,7 +9,7 @@ const cityRouter = require('./api/cities')
 const productRouter = require('./api/products')
 const priceListRouter = require('./api/priceLists')
 const importRouter = require('./api/imports')
-
+const syncRouter = require('./api/syncronizations')
 // Users
 router.use('/user', usersRouter);
 
@@ -39,6 +39,9 @@ router.use('/pricelist', priceListRouter)
 
 // Import
 router.use('/import', importRouter)
+
+// Syncronization
+router.use('/sync', syncRouter)
 
 
 module.exports = router;

@@ -4,7 +4,7 @@ const productsFunctions = require('../functions/product');
 exports.create = async (req, res) => {
     const shopifyHeader = req.get('X-Shopify-Shop-Domain');
     const mercadolibreHeader = req.get('X-Shopify-Shop-Domain');
-    const productData = req.body;    
+    const productData = req.body;
 
     try {
         let result;
@@ -34,21 +34,15 @@ exports.create = async (req, res) => {
 };
 
 
-exports.list = async (req, res) => { 
-    // Recuperar los parámetros de la solicitud
-    const userId = req.params.user_id
-    const channelId = req.params.channel_id || 1
+exports.list = async (req, res) => {
+    const userId = req.params.user_id;
+    const channelId = req.params.channel_id; // Puede ser undefined si no está presente
 
     try {
-        // Filtrar productos por usuario y canal
-        const products = await db.product.findAll({
-            where: { user_id: userId },  // Usamos el parámetro userId
+        // Configurar la consulta base
+        const query = {
+            where: { user_id: userId }, // Usamos el parámetro userId
             include: [
-                {
-                    model: db.channel_product,
-                    where: { channel_id: channelId },  // Usamos el parámetro channelId
-                    required: true, // Asegura que solo se traen productos asociados al canal
-                },
                 {
                     model: db.variant,
                     include: [
@@ -59,17 +53,34 @@ exports.list = async (req, res) => {
                     ]
                 }
             ]
-        });
+        };
+
+        // Agregar el filtro de canal solo si channelId está definido
+        if (channelId) {
+            query.include.push({
+                model: db.channel_product,
+                where: { channel_id: channelId }, // Usamos el parámetro channelId
+                required: true, // Solo traer productos asociados al canal
+            });
+        } else {
+            query.include.push({
+                model: db.channel_product,
+                required: false, // No es obligatorio que haya una asociación con el canal
+            });
+        }
+
+        // Filtrar productos por usuario y opcionalmente por canal
+        const products = await db.product.findAll(query);
 
         // Si no se encuentran productos
         if (!products || products.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron productos para el usuario y canal especificados.' });
+            return res.status(404).json({ message: 'No se encontraron productos para el usuario especificado.' });
         }
 
         // Formatear la respuesta
         const formattedProducts = products.map(product => {
-            // Obtener el ecommerce_id del canal asociado
-            const channelProduct = product.channel_products.find(cp => cp.channel_id === channelId);
+            // Obtener el ecommerce_id del canal asociado si aplica
+            const channelProduct = product.channel_products?.find(cp => cp.channel_id === channelId);
 
             return {
                 id: product.id,
@@ -89,7 +100,10 @@ exports.list = async (req, res) => {
         });
 
         // Devolver los productos
-        return res.status(200).json(formattedProducts);
+        return res.status(200).json({
+            rows: formattedProducts,
+            total: formattedProducts.length
+        });
     } catch (error) {
         console.error('Error al listar productos:', error.message);
         return res.status(500).json({ message: 'Hubo un error al listar los productos.' });

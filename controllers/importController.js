@@ -106,6 +106,23 @@ exports.importHistoweb = async (req, res, next) => {
                     requires_shipping: typeSettings.requires_shipping,
                 });
 
+                await db.change_log.create({
+                    product_id: newProduct.id,
+                    variant_id: newVariant.id,
+                    field: 'create',
+                    oldValue: null,
+                    newValue: JSON.stringify({
+                        product: {
+                            title: newProduct.title,
+                            product_type: newProduct.product_type,
+                        },
+                        variant: {
+                            sku: newVariant.sku,
+                        },
+                    }),
+                    state: 'create', // Estado de creación
+                });
+
                 // Asignar precios en todas las listas de precios
                 const priceLists = await db.price_list.findAll({
                     where: { user_id },
@@ -173,6 +190,7 @@ exports.importHistoweb = async (req, res, next) => {
                                     field: change.field,
                                     oldValue: change.oldValue,
                                     newValue: change.newValue,
+                                    state: 'update',
                                 })
                             )
                         );
@@ -213,6 +231,7 @@ exports.importHistoweb = async (req, res, next) => {
                             field: change.field,
                             oldValue: change.oldValue,
                             newValue: change.newValue,
+                            state: 'update',
                         })
                     )
                 );
@@ -477,6 +496,23 @@ exports.importSerpi = async function (req, res, next) {
                         requires_shipping: item.variants[0].requires_shipping,
                     });
 
+                    await db.change_log.create({
+                        product_id: newProduct.id,
+                        variant_id: newVariant.id,
+                        field: 'create',
+                        oldValue: null,
+                        newValue: JSON.stringify({
+                            product: {
+                                title: newProduct.title,
+                                product_type: newProduct.product_type,
+                            },
+                            variant: {
+                                sku: newVariant.sku,
+                            },
+                        }),
+                        state: 'create', // Estado de creación
+                    });
+
                     // Asignar precios en todas las listas de precios
                     const priceLists = await db.price_list.findAll({
                         where: { user_id },
@@ -547,6 +583,7 @@ exports.importSerpi = async function (req, res, next) {
                                         field: change.field,
                                         oldValue: change.oldValue,
                                         newValue: change.newValue,
+                                        state: 'update'
                                     })
                                 )
                             );
@@ -587,6 +624,7 @@ exports.importSerpi = async function (req, res, next) {
                                 field: change.field,
                                 oldValue: change.oldValue,
                                 newValue: change.newValue,
+                                state: 'update'
                             })
                         )
                     );

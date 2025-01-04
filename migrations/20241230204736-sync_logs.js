@@ -23,9 +23,12 @@ module.exports = {
       sync_form: {
         type: Sequelize.STRING,
       },
+<<<<<<< HEAD
       date: {
         type: Sequelize.DATE
       },
+=======
+>>>>>>> 313f772 (Adding AWS Funcions To Toppo)
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

@@ -3,6 +3,7 @@ const apiRouter = require('./routes/api');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const cronJob = require('./utils/cron/cronJobs');  // Importamos el cronJob
 
 //Vars
 let PORT;

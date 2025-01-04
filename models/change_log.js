@@ -18,7 +18,8 @@ module.exports = (sequelize, DataTypes) => {
         channel_id: DataTypes.INTEGER,
         field: DataTypes.STRING,
         oldValue: DataTypes.TEXT,
-        newValue: DataTypes.TEXT
+        newValue: DataTypes.TEXT,
+        state: DataTypes.STRING,
     }, {
         sequelize,
         modelName: 'change_log',

@@ -109,3 +109,10 @@ exports.list = async (req, res) => {
         return res.status(500).json({ message: 'Hubo un error al listar los productos.' });
     }
 };
+
+exports.update = async (req, res) => {
+
+}
+
+
+module.exports.getProducts = getProducts; // Exportar la función

@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) => {
         sync_status: DataTypes.BOOLEAN,
         product_type: DataTypes.BOOLEAN,
         price: DataTypes.BOOLEAN,
+        compare_at_price: DataTypes.BOOLEAN,
         security_inventory: DataTypes.BOOLEAN,
         price_list_serpi: DataTypes.INTEGER,
         branch_serpi: DataTypes.INTEGER

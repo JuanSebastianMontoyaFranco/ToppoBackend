@@ -95,6 +95,12 @@ exports.importHistoweb = async (req, res, next) => {
                     title: item.name,
                     user_id,
                     product_type: typeSettings.product_type,
+<<<<<<< HEAD
+=======
+                    status: 'draft',
+                    template: typeSettings.template_suffix,
+                    vendor: item.product_brand && item.product_brand.trim() !== "" ? item.product_brand.toUpperCase() : "",
+>>>>>>> 313f772 (Adding AWS Funcions To Toppo)
                     ...typeSettings.additionalFields(item),
                 });
 

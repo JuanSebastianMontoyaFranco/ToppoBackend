@@ -8,6 +8,7 @@ const { send } = require('../../controllers/syncController'); // Importa tu func
 //5 MINUTOS: */5 * * * *
 //HORA: 0 * * * *
 //30 MIN DE CADA HORA
+//otro cambios
 cron.schedule('0 * * * *', async () => {
     try {
         const usersToSync = await db.sync_parameter.findAll({

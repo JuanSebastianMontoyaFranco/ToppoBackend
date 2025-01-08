@@ -11,10 +11,6 @@ module.exports = (sequelize, DataTypes) => {
     sync_log.init({
         user_id: DataTypes.INTEGER,
         sync_form: DataTypes.STRING,
-<<<<<<< HEAD
-        date: DataTypes.DATE,
-=======
->>>>>>> 313f772 (Adding AWS Funcions To Toppo)
     }, {
         sequelize,
         modelName: 'sync_log',

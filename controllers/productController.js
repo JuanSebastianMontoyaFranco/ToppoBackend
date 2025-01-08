@@ -33,86 +33,179 @@ exports.create = async (req, res) => {
     }
 };
 
+async function getProducts({ userId, channelId, state }) {
+    try {
+        // Obtener la lista de precios por defecto
+        const defaultPriceList = await db.price_list.findOne({
+            where: { default: true }, // Suponiendo que tienes un campo que marca la lista por defecto
+        });
+
+        if (!defaultPriceList) {
+            throw new Error("No se encontró una lista de precios por defecto.");
+        }
+
+        // Obtener la última sincronización del usuario en la tabla sync_log
+        const lastSync = await db.sync_log.findOne({
+            where: { user_id: userId },
+            order: [['createdAt', 'DESC']], // Ordenar por la fecha de creación, descendente
+        });        
+        
+        const lastSyncDate = lastSync ? lastSync.createdAt : null;
+                
+        if (state) {
+            // Si el campo state está presente, realizar la búsqueda en change_logs
+            const changeLogs = await db.change_log.findAll({
+                where: {
+                    state: state, // Filtrar por "create" o "update"
+                    createdAt: { [db.Sequelize.Op.gt]: lastSyncDate }, // Fecha superior a la última sincronización
+                },
+                include: [
+                    {
+                        model: db.product,
+                        where: { user_id: userId }, // Filtrar por usuario
+                        required: true,
+                        include: [
+                            {
+                                model: db.variant,
+                                include: [
+                                    {
+                                        model: db.price,
+                                        include: [
+                                            {
+                                                model: db.price_list,
+                                                where: { id: defaultPriceList.id }, // Usar la lista de precios por defecto
+                                            },
+                                        ],
+                                        required: false,
+                                    },
+                                ],
+                            },
+                            ...(channelId
+                                ? [{
+                                    model: db.channel_product,
+                                    where: { channel_id: channelId },
+                                    required: true,
+                                }]
+                                : []),
+                        ],
+                    },
+                ],
+            });
+
+            console.log(changeLogs.length);
+            
+
+            if (!changeLogs || changeLogs.length === 0) {
+                return { rows: [], total: 0 };
+            }
+
+            // Formatear la respuesta
+            const formattedProducts = changeLogs.map(changeLog => {
+                const product = changeLog.product;
+                const channelProduct = product.channel_products?.find(
+                    cp => cp.channel_id === channelId
+                );
+
+                return {
+                    id: product.id,
+                    title: product.title,
+                    ecommerce_id: channelProduct?.ecommerce_id || null, // Recuperar ecommerce_id
+                    variants: product.variants.map(variant => {
+                        const defaultPrice = variant.prices.find(
+                            price => price.price_list_id === defaultPriceList.id
+                        );
+                        return {
+                            variant_id: variant.id,
+                            title: variant.title,
+                            price: defaultPrice ? defaultPrice.price : null,
+                            compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
+                        };
+                    }),
+                };
+            });
+
+            return { rows: formattedProducts, total: formattedProducts.length };
+        } else {
+            // Consulta base
+            const query = {
+                where: { user_id: userId },
+                include: [
+                    {
+                        model: db.variant,
+                        include: [
+                            {
+                                model: db.price,
+                                include: [
+                                    {
+                                        model: db.price_list,
+                                        where: { id: defaultPriceList.id }, // Usar la lista de precios por defecto
+                                    },
+                                ],
+                                required: false,
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            if (channelId) {
+                query.include.push({
+                    model: db.channel_product,
+                    where: { channel_id: channelId },
+                    required: true,
+                });
+            } else {
+                query.include.push({
+                    model: db.channel_product,
+                    required: false,
+                });
+            }
+
+            const products = await db.product.findAll(query);
+
+            if (!products || products.length === 0) {
+                return { rows: [], total: 0 };
+            }
+
+            const formattedProducts = products.map(product => {
+                const channelProduct = product.channel_products?.find(cp => cp.channel_id === channelId);
+                return {
+                    id: product.id,
+                    title: product.title,
+                    ecommerce_id: channelProduct?.ecommerce_id || null,
+                    variants: product.variants.map(variant => {
+                        const defaultPrice = variant.prices.find(
+                            price => price.price_list_id === defaultPriceList.id
+                        );
+                        return {
+                            variant_id: variant.id,
+                            title: variant.title,
+                            price: defaultPrice ? defaultPrice.price : null, // Mostrar el precio o null si no hay default
+                        };
+                    }),
+                };
+            });
+
+            return { rows: formattedProducts, total: formattedProducts.length };
+        }
+    } catch (error) {
+        console.error('Error al obtener productos:', error.message);
+        throw error;
+    }
+}
 
 exports.list = async (req, res) => {
     const userId = req.params.user_id;
-    const channelId = req.params.channel_id; // Puede ser undefined si no está presente
+    const channelId = req.body.channel_id || null; // Manejar channel_id opcional
+    const state = req.body.state;
 
     try {
-        // Configurar la consulta base
-        const query = {
-            where: { user_id: userId }, // Usamos el parámetro userId
-            include: [
-                {
-                    model: db.variant,
-                    include: [
-                        {
-                            model: db.price,
-                            required: true,
-                        }
-                    ]
-                }
-            ]
-        };
-
-        // Agregar el filtro de canal solo si channelId está definido
-        if (channelId) {
-            query.include.push({
-                model: db.channel_product,
-                where: { channel_id: channelId }, // Usamos el parámetro channelId
-                required: true, // Solo traer productos asociados al canal
-            });
-        } else {
-            query.include.push({
-                model: db.channel_product,
-                required: false, // No es obligatorio que haya una asociación con el canal
-            });
-        }
-
-        // Filtrar productos por usuario y opcionalmente por canal
-        const products = await db.product.findAll(query);
-
-        // Si no se encuentran productos
-        if (!products || products.length === 0) {
-            return res.status(404).json({ message: 'No se encontraron productos para el usuario especificado.' });
-        }
-
-        // Formatear la respuesta
-        const formattedProducts = products.map(product => {
-            // Obtener el ecommerce_id del canal asociado si aplica
-            const channelProduct = product.channel_products?.find(cp => cp.channel_id === channelId);
-
-            return {
-                id: product.id,
-                title: product.title,
-                ecommerce_id: channelProduct?.ecommerce_id || null, // Asignar el ecommerce_id si existe
-                variants: product.variants.map(variant => ({
-                    variant_id: variant.id,
-                    title: variant.title,
-                    prices: variant.prices.map(price => ({
-                        price_list_id: price.price_list_id,
-                        price: price.price,
-                        compare_at_price: price.compare_at_price,
-                        currency: price.currency,
-                    })),
-                })),
-            };
-        });
-
-        // Devolver los productos
-        return res.status(200).json({
-            rows: formattedProducts,
-            total: formattedProducts.length
-        });
+        const result = await getProducts({ userId, channelId, state });
+        return res.status(200).json(result);
     } catch (error) {
         console.error('Error al listar productos:', error.message);
         return res.status(500).json({ message: 'Hubo un error al listar los productos.' });
     }
 };
 
-exports.update = async (req, res) => {
-
-}
-
-
-module.exports.getProducts = getProducts; // Exportar la función
+module.exports.getProducts = getProducts;

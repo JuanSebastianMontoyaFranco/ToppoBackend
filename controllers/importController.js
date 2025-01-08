@@ -95,15 +95,8 @@ exports.importHistoweb = async (req, res, next) => {
                     title: item.name,
                     user_id,
                     product_type: typeSettings.product_type,
-<<<<<<< HEAD
-=======
-                    status: 'draft',
-                    template: typeSettings.template_suffix,
-                    vendor: item.product_brand && item.product_brand.trim() !== "" ? item.product_brand.toUpperCase() : "",
->>>>>>> 313f772 (Adding AWS Funcions To Toppo)
                     ...typeSettings.additionalFields(item),
                 });
-
                 const newVariant = await db.variant.create({
                     product_id: newProduct.id,
                     sku: item.sku,
@@ -115,7 +108,7 @@ exports.importHistoweb = async (req, res, next) => {
                 await db.change_log.create({
                     product_id: newProduct.id,
                     variant_id: newVariant.id,
-                    field: 'create',
+                    field: null,
                     oldValue: null,
                     newValue: JSON.stringify({
                         product: {
@@ -505,7 +498,7 @@ exports.importSerpi = async function (req, res, next) {
                     await db.change_log.create({
                         product_id: newProduct.id,
                         variant_id: newVariant.id,
-                        field: 'create',
+                        field: null,
                         oldValue: null,
                         newValue: JSON.stringify({
                             product: {

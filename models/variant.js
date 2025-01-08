@@ -24,6 +24,7 @@ module.exports = (sequelize, DataTypes) => {
         inventory_management: DataTypes.STRING,
         fullfilment_service: DataTypes.STRING,
         taxable: DataTypes.BOOLEAN,
+        tax_percentage: DataTypes.FLOAT,
         weight: DataTypes.FLOAT,
         weight_unit: DataTypes.STRING,
         image_url: DataTypes.STRING,

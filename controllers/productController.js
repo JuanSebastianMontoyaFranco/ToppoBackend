@@ -48,10 +48,10 @@ async function getProducts({ userId, channelId, state }) {
         const lastSync = await db.sync_log.findOne({
             where: { user_id: userId },
             order: [['createdAt', 'DESC']], // Ordenar por la fecha de creación, descendente
-        });        
-        
+        });
+
         const lastSyncDate = lastSync ? lastSync.createdAt : null;
-                
+
         if (state) {
             // Si el campo state está presente, realizar la búsqueda en change_logs
             const changeLogs = await db.change_log.findAll({
@@ -93,7 +93,7 @@ async function getProducts({ userId, channelId, state }) {
             });
 
             console.log(changeLogs.length);
-            
+
 
             if (!changeLogs || changeLogs.length === 0) {
                 return { rows: [], total: 0 };
@@ -108,8 +108,14 @@ async function getProducts({ userId, channelId, state }) {
 
                 return {
                     id: product.id,
-                    title: product.title,
                     ecommerce_id: channelProduct?.ecommerce_id || null, // Recuperar ecommerce_id
+                    title: product.title,
+                    description: product.description,
+                    vendor: product.vendor,
+                    product_type: product.product_type,
+                    template: product.template,
+                    tags: product.tags,
+                    status: product.status,
                     variants: product.variants.map(variant => {
                         const defaultPrice = variant.prices.find(
                             price => price.price_list_id === defaultPriceList.id
@@ -117,6 +123,20 @@ async function getProducts({ userId, channelId, state }) {
                         return {
                             variant_id: variant.id,
                             title: variant.title,
+                            option_1: variant.option_1,
+                            option_2: variant.option_2,
+                            option_3: variant.option_3,
+                            barcode: variant.barcode,
+                            requires_shipping: variant.requires_shipping,
+                            inventory_policy: variant.inventory_policy,
+                            inventory_management: variant.inventory_management,
+                            inventory_quantity: variant.inventory_quantity,
+                            fullfillment_service: variant.fullfillment_service,
+                            taxable: variant.taxable,
+                            tax_percentage: variant.tax_percentage,
+                            weight: variant.weight,
+                            weight_unit: variant.weight_unit,
+                            image_url: variant.image_url,
                             price: defaultPrice ? defaultPrice.price : null,
                             compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
                         };

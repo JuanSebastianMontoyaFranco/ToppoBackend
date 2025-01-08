@@ -1,6 +1,8 @@
 const db = require('../models');
 const axios = require('axios');
 const getEncryptedText = require('../utils/encrypt');
+const auxiliaryFunctions = require('../functions/auxiliary')
+
 
 exports.importHistoweb = async (req, res, next) => {
     const { user_id } = req.params;
@@ -58,16 +60,20 @@ exports.importHistoweb = async (req, res, next) => {
         const typeConfig = {
             product: {
                 product_type: 'PRODUCTO',
+                template: 'product',
                 requires_shipping: true,
+                inventory_management: 'shopify',
                 additionalFields: (item) => ({
-                    tags: item.product_use || '',
+                    tags: auxiliaryFunctions.formatTags([item.product_laboratory, item.product_type, item.product_use]),
                 }),
             },
             service: {
                 product_type: 'SERVICIO',
+                template: 'service',
                 requires_shipping: false,
+                inventory_management: null,
                 additionalFields: (item) => ({
-                    tags: item.service_type || '',
+                    tags: auxiliaryFunctions.formatTags([item.product_laboratory, item.product_type, item.product_use]),
                 }),
             },
         };
@@ -94,12 +100,27 @@ exports.importHistoweb = async (req, res, next) => {
                 const newProduct = await db.product.create({
                     title: item.name,
                     user_id,
+                    status: 'draft',
+                    description: item.product_laboratory || '',
                     product_type: typeSettings.product_type,
+                    vendor: item.product_laboratory || '',
+                    template: typeSettings.template,
                     ...typeSettings.additionalFields(item),
                 });
                 const newVariant = await db.variant.create({
                     product_id: newProduct.id,
+                    title: 'Default Title',
+                    option_1: 'Default Title',
                     sku: item.sku,
+                    barcode: item.barcode,
+                    inventory_policy: 'deny',
+                    taxable: true,
+                    tax_percentage: item.tax_percentage,
+                    weight: null,
+                    weight_unit: '',
+                    inventory_management: typeSettings.inventory_management,
+                    inventory_quantity: item.stock_quantity,
+                    fulfillment_service: null,
                     price,
                     compare_at_price: compareAtPrice,
                     requires_shipping: typeSettings.requires_shipping,

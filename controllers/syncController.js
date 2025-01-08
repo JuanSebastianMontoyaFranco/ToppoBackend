@@ -16,7 +16,7 @@ exports.send = async (req, res, next) => {
 
     try {
         // Consultar los parámetros del usuario
-        console.log('Consultando parámetros del usuario...');
+        //console.log('Consultando parámetros del usuario...');
         const userParameters = await db.sync_parameter.findOne({ where: { user_id } });
 
         // Verificar si userParameters es undefined
@@ -30,10 +30,10 @@ exports.send = async (req, res, next) => {
         }
 
         const { product_type, price, compare_at_price } = userParameters.dataValues;
-        console.log('Parámetros extraídos:', { product_type, price, compare_at_price });
+        //console.log('Parámetros extraídos:', { product_type, price, compare_at_price });
 
         // Función para procesar los productos
-        console.log('Procesando productos...');
+        //console.log('Procesando productos...');
         const processProducts = (products, isUpdate = false) => {
             if (!products || !Array.isArray(products)) {
                 console.log(`Los productos proporcionados no son válidos. Es un valor ${typeof products}.`);
@@ -46,7 +46,7 @@ exports.send = async (req, res, next) => {
                     return {};
                 }
 
-                console.log(`Procesando producto [${index}]:`, JSON.stringify(product, null, 2));
+                //console.log(`Procesando producto [${index}]:`, JSON.stringify(product, null, 2));
 
                 if (product.variants && Array.isArray(product.variants)) {
                     product.variants = product.variants.map((variant, variantIndex) => {
@@ -55,29 +55,47 @@ exports.send = async (req, res, next) => {
                             return {};
                         }
 
-                        console.log(`Procesando variante [${index}:${variantIndex}] antes de eliminar campos:`, JSON.stringify(variant, null, 2));
+                        //console.log(`Procesando variante [${index}:${variantIndex}] antes de eliminar campos(${isUpdate ? 'ACTUALIZAR' : 'CREAR'}) :`, JSON.stringify(variant, null, 2));
                         variant.price = String(variant.price);
                         variant.compare_at_price = variant.compare_at_price === null ? null : String(variant.compare_at_price);
 
                         const fieldsToDelete = [
-                            'id', 'shopify_id', 'product_id', 'createdAt', 'updatedAt', 'option1', 'option2', 'option3', 'user_id',
-                            'image_url', 'weight', 'weight_unit', 'fulfillment_service', 'taxable',
+                            'id',
+                            'product_id',
+                            'option_1',
+                            'option_2',
+                            'option_3',
+                            'user_id',
+                            'image_url',
+                            'weight',
+                            'weight_unit',
+                            'fulfillment_service',
+                            'taxable',
+                            'createdAt',
+                            'updatedAt',
                             ...(!price ? ['price'] : []),
                             ...(!compare_at_price ? ['compare_at_price'] : []),
                         ];
                         fieldsToDelete.forEach(field => delete variant[field]);
-                        console.log(`Variante después de eliminar campos:`, JSON.stringify(variant, null, 2));
+                        console.log(`Variante después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(variant, null, 2));
 
                         return variant;
                     });
                 }
 
                 const fieldsToDelete = [
-                    'domain', 'createdAt', 'updatedAt', 'user_id', 'sync_from', 'description', 'state', 'variant', 'template', 'tags',
+                    'user_id',
+                    'ecommerce_id',
+                    'vendor',
+                    'description',
+                    'template',
+                    'tags',
+                    'createdAt',
+                    'updatedAt',
                     ...(!product_type ? ['product_type'] : []),
                 ];
                 fieldsToDelete.forEach(field => delete product[field]);
-                console.log(`Producto después de eliminar campos:`, JSON.stringify(product, null, 2));
+                console.log(`Producto después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(product, null, 2));
 
                 return product;
             });
@@ -85,13 +103,13 @@ exports.send = async (req, res, next) => {
 
         // Verificar que create y update sean arrays válidos
         const processedCreate = Array.isArray(create) ? processProducts(create) : [];
-        console.log('Productos procesados para crear:', JSON.stringify(processedCreate, null, 2));
+        //console.log('Productos procesados para crear:', JSON.stringify(processedCreate, null, 2));
         const processedUpdate = Array.isArray(update) ? processProducts(update, true) : [];
-        console.log('Productos procesados para actualizar:', JSON.stringify(processedUpdate, null, 2));
+        //console.log('Productos procesados para actualizar:', JSON.stringify(processedUpdate, null, 2));
 
         if (processedCreate.length > 0) {
             console.log('Encolando productos para crear...');
-            await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
+            //await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 return res.status(200).json({ message: 'Productos encolados exitosamente para creación.' });
             }
@@ -111,7 +129,7 @@ exports.send = async (req, res, next) => {
             console.log('Registrando proceso manual...');
             await syncFunctions.logSync(user_id, 'Manual');
             return res.status(200).json({ message: 'Proceso completado manualmente.' });
-        }else {
+        } else {
             console.log('Proceso completado automaticamente (ejecución cron).');
         }
 
@@ -120,9 +138,9 @@ exports.send = async (req, res, next) => {
         console.error('Detalles del error:', error);
         // Responder con mensaje de error si no es cron
         if (!fromCron) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 message: 'Error al ejecutar el proceso.',
-                error: error?.message || String(error) 
+                error: error?.message || String(error)
             });
         }
 

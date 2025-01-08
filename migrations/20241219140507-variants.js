@@ -55,6 +55,9 @@ module.exports = {
       taxable: {
         type: Sequelize.BOOLEAN
       },
+      tax_percentage: {
+        type: Sequelize.BOOLEAN
+      },
       weight: {
         type: Sequelize.FLOAT
       },

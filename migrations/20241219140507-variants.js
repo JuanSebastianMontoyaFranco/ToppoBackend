@@ -44,7 +44,7 @@ module.exports = {
         type: Sequelize.STRING
       },
       inventory_quantity: {
-        type: Sequelize.BOOLEAN
+        type: Sequelize.INTEGER
       },
       inventory_management: {
         type: Sequelize.STRING

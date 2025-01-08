@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         barcode: DataTypes.STRING,
         requires_shipping: DataTypes.BOOLEAN,
         inventory_policy: DataTypes.STRING,
-        inventory_quantity: DataTypes.BOOLEAN,
+        inventory_quantity: DataTypes.INTEGER,
         inventory_management: DataTypes.STRING,
         fullfilment_service: DataTypes.STRING,
         taxable: DataTypes.BOOLEAN,

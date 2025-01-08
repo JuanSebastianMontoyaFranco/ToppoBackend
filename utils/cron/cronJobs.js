@@ -8,7 +8,7 @@ const { send } = require('../../controllers/syncController'); // Importa tu func
 //5 MINUTOS: */5 * * * *
 //HORA: 0 * * * *
 //30 MIN DE CADA HORA
-cron.schedule('* * * * *', async () => {
+cron.schedule('0 * * * *', async () => {
     try {
         const usersToSync = await db.sync_parameter.findAll({
             where: { sync_status: 1 },
@@ -41,7 +41,7 @@ cron.schedule('* * * * *', async () => {
                     console.log('DOMINIO ENVIADO:', shopify_domain);
                     console.log('TOKEN ENVIADO:', token_shopify);
 
-                    //await syncFunctions.logSync(userId, 'Automatic');
+                    await syncFunctions.logSync(userId, 'Automatic');
 
                     // Llama a send con el parámetro fromCron
                     await send({

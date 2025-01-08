@@ -228,4 +228,68 @@ exports.list = async (req, res) => {
     }
 };
 
+
+exports.update = async (req, res) => {
+    try {
+        const channelProduct = await db.channel_product.findOne({
+            where: { ecommerce_id: req.body.id }
+        });
+
+        if (!channelProduct) {
+            console.log(`Producto con ecommerce_id ${req.body.id} no encontrado.`);
+            return res.status(404).send({
+                message: 'Producto no encontrado en channel_product.',
+            });
+        }
+
+        const product = await db.product.findOne({
+            where: { id: channelProduct.product_id }
+        });
+
+        if (!product) {
+            console.log(`Producto con ID ${channelProduct.product_id} no encontrado en la tabla product.`);
+            return res.status(404).send({
+                message: 'Producto relacionado no encontrado en la tabla product.',
+            });
+        }
+        
+        await product.update({
+            status: req.body.status,
+        });
+
+        // Buscar y actualizar las variantes relacionadas en la tabla variant
+        const variants = await db.variant.findAll({
+            where: { product_id: product.id }
+        });
+
+        if (variants && Array.isArray(req.body.variants)) {
+            for (const variant of req.body.variants) {
+                // Buscar la variante existente por ID
+                const existingVariant = variants.find(v => v.id === variant.id);
+
+                if (existingVariant) {
+                    // Actualizar el campo barcode de la variante
+                    await existingVariant.update({
+                        barcode: variant.barcode,
+                    });
+                } else {
+                    console.log(`Variante con ID ${variant.id} no encontrada.`);
+                }
+            }
+        }
+
+        console.log('Producto y variantes actualizados con éxito.');
+        return res.status(200).send({
+            message: 'Producto y variantes actualizados con éxito.',
+        });
+    } catch (error) {
+        console.error('Error al actualizar el producto:', error);
+        return res.status(500).send({
+            message: 'Hubo un error al actualizar el producto.',
+            error: error.message,
+        });
+    }
+};
+
+
 module.exports.getProducts = getProducts;

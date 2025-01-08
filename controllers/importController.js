@@ -1,8 +1,8 @@
 const db = require('../models');
 const axios = require('axios');
+const { Op } = require('sequelize');
 const getEncryptedText = require('../utils/encrypt');
 const auxiliaryFunctions = require('../functions/auxiliary')
-
 
 exports.importHistoweb = async (req, res, next) => {
     const { user_id } = req.params;
@@ -56,6 +56,30 @@ exports.importHistoweb = async (req, res, next) => {
         const services = allData.filter(item => item.type === 'service').slice(0, 2);
         const selectedData = [...products, ...services];
 
+        const incomingSkus = selectedData.map(item => item.sku);
+
+        const outdatedProducts = await db.product.findAll({
+            where: {
+                user_id,
+                status: { [Op.not]: 'archived' },
+                '$variants.sku$': { [Op.notIn]: incomingSkus },
+            },
+            include: [{ model: db.variant }],
+        });
+
+        for (const product of outdatedProducts) {
+            await db.change_log.create({
+                product_id: product.id,
+                variant_id: null,
+                field: 'status',
+                oldValue: product.status,
+                newValue: 'archived',
+                state: 'update',
+            });
+            product.status = 'archived';
+            await product.save();
+        }
+
         // Configuración para productos y servicios
         const typeConfig = {
             product: {
@@ -94,6 +118,26 @@ exports.importHistoweb = async (req, res, next) => {
                 where: { sku: item.sku },
                 include: [{ model: db.product, where: { user_id } }],
             });
+
+            if (variant) {
+                const existingProduct = variant.product;
+
+                // Si el producto está archivado, cambiarlo a "draft"
+                if (existingProduct.status === 'archived') {
+                    await db.change_log.create({
+                        product_id: existingProduct.id,
+                        variant_id: variant.id,
+                        field: 'status',
+                        oldValue: 'archived',
+                        newValue: 'draft',
+                        state: 'update',
+                    });
+                    existingProduct.status = 'draft';
+                    await existingProduct.save();
+                }
+                allProcessedItems.push(existingProduct);
+                continue;
+            }
 
             if (!variant) {
                 // Crear producto y variante
@@ -183,7 +227,7 @@ exports.importHistoweb = async (req, res, next) => {
                         changes.push({
                             field: 'price',
                             oldValue: existingPrice.price,
-                            newValue: price,
+                            newValue: parseFloat(price),
                         });
                         existingPrice.price = price;
                     }
@@ -263,7 +307,10 @@ exports.importHistoweb = async (req, res, next) => {
             allProcessedItems.push(existingProduct);
         }
 
-        res.status(200).json({ message: 'Datos procesados correctamente', allProcessedItems });
+        res.status(200).json({ 
+            message: 'Datos procesados correctamente', 
+            products: allProcessedItems 
+        });
     } catch (error) {
         console.error('Error al importar datos:', error);
 

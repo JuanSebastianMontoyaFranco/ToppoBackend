@@ -153,6 +153,7 @@ exports.importHistoweb = async (req, res, next) => {
                 });
                 const newVariant = await db.variant.create({
                     product_id: newProduct.id,
+                    user_id: newProduct.user_id,
                     title: 'Default Title',
                     option_1: 'Default Title',
                     sku: item.sku,
@@ -557,6 +558,7 @@ exports.importSerpi = async function (req, res, next) {
 
                     const newVariant = await db.variant.create({
                         product_id: newProduct.id,
+                        user_id: newProduct.user_id,
                         sku: item.variants[0].sku,
                         price: item.variants[0].price,
                         compare_at_price: item.variants[0].compare_at_price,

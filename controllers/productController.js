@@ -122,6 +122,7 @@ async function getProducts({ userId, channelId, state }) {
                         );
                         return {
                             variant_id: variant.id,
+                            sku: variant.sku,
                             title: variant.title,
                             option_1: variant.option_1,
                             option_2: variant.option_2,

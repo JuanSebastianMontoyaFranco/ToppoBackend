@@ -106,6 +106,9 @@ exports.getTransactionId = async (orderId, confirmationNumber) => {
 };
 
 exports.getVariant = async (sku, userId) => {
+
+    console.log('Sku en funcion getVariant:', sku);
+    
     try {
         const variant = await db.variant.findOne({
             where: {
@@ -157,8 +160,11 @@ exports.getGiftCardValues = async (orderId) => {
 
 
 exports.getBranch = async (items, userId) => {
-    console.log('ENTRA EN FUNCION BRANCH');
-    console.log('USUARIO QUE BUSCA', userId);
+    console.log('Entra en getBranch');
+    console.log('Usuario en getBranch', userId);
+
+    //console.log('Items en getBranch', items);
+    
     try {
         const parameter = await db.order_parameter.findOne({ where: { user_id: userId } });
 
@@ -180,6 +186,29 @@ exports.getBranch = async (items, userId) => {
         throw error;
     }
 };
+
+exports.getCompareAtPrice = async (variantId, userId) => {
+    try {
+        // Obtener la lista de precios por defecto del usuario
+        const priceList = await db.price_list.findOne({
+            where: { user_id: userId, default: true },
+        });
+
+        if (!priceList) {
+            throw new Error('No se encontró una lista de precios por defecto para el usuario.');
+        }
+
+        // Obtener el precio de comparación de la tabla price
+        const price = await db.price.findOne({
+            where: { price_list_id: priceList.id, variant_id: variantId }, // Ajusta el campo "sku" si tiene otro nombre
+        });
+
+        return price ? price.compare_at_price : null; // Retorna el precio si existe
+    } catch (error) {
+        console.error('Error al obtener compare_at_price:', error);
+        return null; // Manejo de errores, retorna null si hay problemas
+    }
+}
 
 
 

@@ -92,6 +92,8 @@ exports.create = async (req, res, next) => {
 
             const variant = await ordersFunctions.getVariant(lineItem.sku, userId);
 
+            variant.compare_at_price = await ordersFunctions.getCompareAtPrice(variant.id, userId);
+
             const naturalDiscountValue =  // Descuento entre el precio de comparación y precio de venta
                 variant.compare_at_price !== null && variant.compare_at_price > lineItem.price
                     ? variant.compare_at_price - lineItem.price

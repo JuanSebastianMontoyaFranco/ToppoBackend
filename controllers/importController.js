@@ -345,8 +345,6 @@ exports.importSerpi = async function (req, res, next) {
         console.log(branch_serpi);
         console.log(price_list_serpi);
         console.log(all_products);
-        
-
 
         // Definir URLs de las APIs
         let API_article = 'https://apis.serpi.com.co/api/v1/Articulo';

@@ -308,9 +308,9 @@ exports.importHistoweb = async (req, res, next) => {
             allProcessedItems.push(existingProduct);
         }
 
-        res.status(200).json({ 
-            message: 'Datos procesados correctamente', 
-            products: allProcessedItems 
+        res.status(200).json({
+            message: 'Datos procesados correctamente',
+            products: allProcessedItems
         });
     } catch (error) {
         console.error('Error al importar datos:', error);
@@ -340,10 +340,12 @@ exports.importSerpi = async function (req, res, next) {
         }
 
         const { token_serpi, secret_key_serpi } = credentials;
-        const { price_list_serpi, branch_serpi, security_inventory } = parameters;
+        const { price_list_serpi, branch_serpi, security_inventory, all_products } = parameters;
 
         console.log(branch_serpi);
         console.log(price_list_serpi);
+        console.log(all_products);
+        
 
 
         // Definir URLs de las APIs
@@ -416,7 +418,6 @@ exports.importSerpi = async function (req, res, next) {
 
                     const isExportable = product.exportable;
                     let inventory = matchingData5 ? matchingData5.saldo : 0;
-                    const shipping = product.idlinea == 2;
                     let variant_price = matchingData ? matchingData.precio.toFixed(2) : '0.00';
                     const discount = matchingData ? matchingData.descuento.toFixed(2) : '0.00';
 
@@ -435,9 +436,6 @@ exports.importSerpi = async function (req, res, next) {
                     const variant_vendor = matchingData2 ? matchingData2.descripcion : "";
                     const variant_category = matchingData3 ? matchingData3.descripcion : "";
                     const linea = matchingData4 ? matchingData4.descripcion : "";
-
-                    const inventory_management =
-                        product.idlinea === 1 ? null : product.idlinea === 2 ? "shopify" : "manual";
 
                     // Obtener las descripciones de los campos personalizados
                     const customFieldDescriptions = Array.isArray(product.camposPersonalizados)
@@ -482,31 +480,55 @@ exports.importSerpi = async function (req, res, next) {
 
                         // Asignar el tipo de producto según el valor de product.idlinea (1 = SERVICIO, 2 = PRODUCTO, 3 = INSUMO)
                         let product_type;
-                        switch (product.idlinea) {
-                            case 1:
-                                product_type = "SERVICIO";
-                                break;
-                            case 2:
-                                product_type = "PRODUCTO";
-                                break;
-                            case 3:
-                                product_type = "INSUMO";
-                                break;
-                            default:
-                                product_type = "OTRO"; // En caso de que no sea ninguno de los valores anteriores
+                        let template;
+                        let requires_shipping;
+                        let inventory_management;
+
+                        if (all_products === true) {
+                            console.log('Entra en IF');
+                            
+                            product_type = "PRODUCTO";
+                            template = "product";
+                            requires_shipping = true;
+                            inventory_management = "shopify";
+                        } else {
+                            switch (product.idlinea) {
+                                case 1:
+                                    product_type = "SERVICIO";
+                                    template = "service";
+                                    requires_shipping = false;
+                                    inventory_management = 'manual';
+                                    break;
+                                case 2:
+                                    product_type = "PRODUCTO";
+                                    template = "product";
+                                    requires_shipping = true;
+                                    inventory_management = "shopify";
+                                    break;
+                                case 3:
+                                    product_type = "INSUMO";
+                                    template = "supply";
+                                    requires_shipping = true;
+                                    inventory_management = "shopify";
+                                    break;
+                                default:
+                                    product_type = "OTRO";
+                                    template = "product";
+                                    requires_shipping = true;
+                                    inventory_management = "shopify";
+                            }
                         }
 
                         return {
                             user_id: user_id,
-                            sync_from: 'SERPI',
                             title: product.descripcion.trimRight(),
                             description: product.descripcionalterna,
                             vendor: variant_vendor,
-                            product_type: product_type.toUpperCase(),
+                            product_type: product_type.charAt(0).toUpperCase() + product_type.slice(1).toLowerCase(),
+                            template: template.charAt(0).toUpperCase() + template.slice(1).toLowerCase(),
                             status: "draft",
                             published_scope: "global",
                             tags: sortedTags,
-                            variant: false,
                             discount: discount,
                             published: true,
                             variants: [
@@ -516,7 +538,7 @@ exports.importSerpi = async function (req, res, next) {
                                     price: priceFloat,
                                     sku: variant_sku,
                                     barcode: product.barras,
-                                    requires_shipping: shipping,
+                                    requires_shipping: requires_shipping,
                                     inventory_policy: "deny",
                                     compare_at_price: compare_at_price,
                                     inventory_management: inventory_management,
@@ -541,7 +563,7 @@ exports.importSerpi = async function (req, res, next) {
             // Guardar o actualizar los productos y sus variantes
             for (const item of selectedData) {
 
-                console.log("Item antes de buscar variante:", item);
+                //console.log("Item antes de buscar variante:", item);
 
                 const variant = await db.variant.findOne({
                     where: { sku: item.variants[0].sku },
@@ -554,15 +576,29 @@ exports.importSerpi = async function (req, res, next) {
                         title: item.title,
                         user_id: item.user_id,
                         product_type: item.product_type,
+                        descripcion: item.description,
+                        vendor: item.vendor,
+                        template: item.template,
+                        status: 'draft',
+                        tags: item.tags,
                     });
 
                     const newVariant = await db.variant.create({
                         product_id: newProduct.id,
                         user_id: newProduct.user_id,
+                        title: 'Default Title',
+                        option_1: 'Default Title',
                         sku: item.variants[0].sku,
-                        price: item.variants[0].price,
-                        compare_at_price: item.variants[0].compare_at_price,
+                        barcode: item.variants[0].barcode,
                         requires_shipping: item.variants[0].requires_shipping,
+                        inventory_policy: item.variants[0].inventory_policy,
+                        inventory_quantity: item.variants[0].inventory_quantity,
+                        inventory_management: item.variants[0].inventory_management,
+                        fulfillment_service: item.variants[0].fulfillment_service,
+                        taxable: item.variants[0].taxable,
+                        tax_percentage: null,
+                        weight: null,
+                        weight_unit: '',
                     });
 
                     await db.change_log.create({
@@ -615,8 +651,7 @@ exports.importSerpi = async function (req, res, next) {
                         where: { variant_id: variant.id, price_list_id: defaultPriceList.id },
                     });
 
-                    console.log('PRECIO EXISTENTE:', existingPrice);
-
+                    //console.log('PRECIO EXISTENTE:', existingPrice);
 
                     if (existingPrice) {
                         const changes = [];

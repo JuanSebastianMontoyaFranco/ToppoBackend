@@ -7,8 +7,8 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       product.belongsTo(models.user, { foreignKey: 'user_id' });
 
-      product.hasMany(models.channel_product, { foreignKey: 'product_id'})
-      product.hasMany(models.variant, { foreignKey: 'product_id'})
+      product.hasMany(models.channel_product, { foreignKey: 'product_id' })
+      product.hasMany(models.variant, { foreignKey: 'product_id' })
 
     }
   };
@@ -21,6 +21,9 @@ module.exports = (sequelize, DataTypes) => {
     template: DataTypes.STRING,
     tags: DataTypes.STRING,
     status: DataTypes.STRING,
+    line: DataTypes.STRING,
+    category: DataTypes.STRING,
+    type: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'product',

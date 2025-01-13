@@ -41,6 +41,9 @@ module.exports = {
       branch_serpi: {
         type: Sequelize.INTEGER
       },
+      all_products: {
+        type: Sequelize.BOOLEAN
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

@@ -21,7 +21,8 @@ module.exports = (sequelize, DataTypes) => {
         compare_at_price: DataTypes.BOOLEAN,
         security_inventory: DataTypes.BOOLEAN,
         price_list_serpi: DataTypes.INTEGER,
-        branch_serpi: DataTypes.INTEGER
+        branch_serpi: DataTypes.INTEGER,
+        all_products: DataTypes.BOOLEAN,
     }, {
         sequelize,
         modelName: 'sync_parameter',

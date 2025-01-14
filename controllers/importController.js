@@ -354,6 +354,7 @@ exports.importSerpi = async function (req, res, next) {
         let API_line = 'https://apis.serpi.com.co/api/v1/Linea';
         let API_inventory_balance = 'https://apis.serpi.com.co/api/v1/SaldoInventario?fechaCorte=2050-01-01&idBodega=';
         let API_fields_article = 'https://apis.serpi.com.co/api/v1/CamposArticulo';
+        let API_type_article = 'https://apis.serpi.com.co/api/v1/TipoPresentacion'
 
         // Ajustar URL según las condiciones
         const checkBodegas = 0;
@@ -384,7 +385,8 @@ exports.importSerpi = async function (req, res, next) {
             response_article_category,
             response_line,
             response_inventory_balance,
-            response_fields_article
+            response_fields_article,
+            response_type_article
         ] = await Promise.all([
             axios.get(API_article, { headers }).catch(error => { throw new Error('Error al obtener datos de artículos: ' + error.message); }),
             axios.get(API_price_list, { headers }).catch(error => { throw new Error('Error al obtener datos de la lista de precios: ' + error.message); }),
@@ -392,7 +394,8 @@ exports.importSerpi = async function (req, res, next) {
             axios.get(API_article_category, { headers }).catch(error => { throw new Error('Error al obtener datos de categorías de artículos: ' + error.message); }),
             axios.get(API_line, { headers }).catch(error => { throw new Error('Error al obtener datos de líneas: ' + error.message); }),
             axios.get(API_inventory_balance, { headers }).catch(error => { throw new Error('Error al obtener datos de saldo de inventario: ' + error.message); }),
-            axios.get(API_fields_article, { headers }).catch(error => { throw new Error('Error al obtener datos de campos de artículos: ' + error.message); })
+            axios.get(API_fields_article, { headers }).catch(error => { throw new Error('Error al obtener datos de campos de artículos: ' + error.message); }),
+            axios.get(API_type_article, { headers }).catch(error => { throw new Error('Error al obtener datos de tipo de presentación: ' + error.message); })
         ]);
 
         const data_article = response_article.data.result;
@@ -402,6 +405,7 @@ exports.importSerpi = async function (req, res, next) {
         const data_line = response_line.data.result;
         const data_inventory_balance = response_inventory_balance.data.result;
         const data_fields_article = response_fields_article.data.result;
+        const data_type_article = response_type_article.data.result;
 
         // Filtrar y transformar los productos
         if (Array.isArray(data_article) && data_article.length > 0) {
@@ -413,6 +417,7 @@ exports.importSerpi = async function (req, res, next) {
                     const matchingData3 = data_article_category.find(data => data.id === product.idcategoria);
                     const matchingData4 = data_line.find(data => data.id === product.idlinea);
                     const matchingData5 = data_inventory_balance.find(data => data.idArticulo === product.id);
+                    const matchingData6 = data_type_article.find(data => data.id === product.idpresentacion);
 
                     const isExportable = product.exportable;
                     let inventory = matchingData5 ? matchingData5.saldo : 0;
@@ -434,6 +439,7 @@ exports.importSerpi = async function (req, res, next) {
                     const variant_vendor = matchingData2 ? matchingData2.descripcion : "";
                     const variant_category = matchingData3 ? matchingData3.descripcion : "";
                     const linea = matchingData4 ? matchingData4.descripcion : "";
+                    const type_article = matchingData6 ? matchingData6.descripcion : "";                    
 
                     // Obtener las descripciones de los campos personalizados
                     const customFieldDescriptions = Array.isArray(product.camposPersonalizados)
@@ -453,6 +459,8 @@ exports.importSerpi = async function (req, res, next) {
                         product.palabrasClave,
                         variant_category,
                         variant_vendor,
+                        type_article,
+                        linea,
                         ...customFieldDescriptions
                     ];
 
@@ -528,6 +536,9 @@ exports.importSerpi = async function (req, res, next) {
                             published_scope: "global",
                             tags: sortedTags,
                             discount: discount,
+                            category: variant_category,
+                            line: linea,
+                            type: type_article,
                             published: true,
                             variants: [
                                 {
@@ -579,6 +590,9 @@ exports.importSerpi = async function (req, res, next) {
                         template: item.template,
                         status: 'draft',
                         tags: item.tags,
+                        category: item.category,
+                        line: item.line,
+                        type: item.type,
                     });
 
                     const newVariant = await db.variant.create({

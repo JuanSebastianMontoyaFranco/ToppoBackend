@@ -86,7 +86,6 @@ exports.send = async (req, res, next) => {
 
                 const fieldsToDelete = [
                     'user_id',
-                    'ecommerce_id',
                     'vendor',
                     'description',
                     'template',
@@ -119,7 +118,7 @@ exports.send = async (req, res, next) => {
 
         if (processedUpdate.length > 0) {
             console.log('Encolando productos para actualizar...');
-            // await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
+            await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 return res.status(200).json({ message: 'Productos encolados exitosamente para actualización.' });
             }

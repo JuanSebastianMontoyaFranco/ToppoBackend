@@ -16,22 +16,24 @@ cron.schedule('0 * * * *', async () => {
         });
 
         console.log('USUARIOS A SINCRONIZAR:', usersToSync);
-        
+
 
         for (const user of usersToSync) {
             const userId = user.user_id;
 
-            const createResult = await getProducts({ userId, state: 'create' });
+            console.log('USUARIO:', userId);
+            
+
+            const createResult = await getProducts({ userId, channel: "", state: 'create', page: 1, limit: 100000 });
             console.log('RESULTADO CREAR:', createResult);
 
-            const updateResult = await getProducts({ userId, state: 'update' });
+            const updateResult = await getProducts({ userId, channel: "", state: 'update', page: 1, limit: 100000 });
             console.log('RESULTADO ACTUALIZAR:', updateResult);
 
             const create = createResult.rows;
             const update = updateResult.rows;
 
             console.log(update);
-
 
             if (create.length > 0 || update.length > 0) {
                 const userCredentials = await db.credential.findOne({ where: { user_id: userId } });

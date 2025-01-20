@@ -52,8 +52,8 @@ exports.importHistoweb = async (req, res, next) => {
         );
 
         // Seleccionar dos productos y dos servicios
-        const products = allData.filter(item => item.type === 'product').slice(0, 2);
-        const services = allData.filter(item => item.type === 'service').slice(0, 2);
+        const products = allData.filter(item => item.type === 'product').slice(0, 5);
+        const services = allData.filter(item => item.type === 'service').slice(0, 5);
         const selectedData = [...products, ...services];
 
         const incomingSkus = selectedData.map(item => item.sku);
@@ -83,7 +83,7 @@ exports.importHistoweb = async (req, res, next) => {
         // Configuración para productos y servicios
         const typeConfig = {
             product: {
-                product_type: 'PRODUCTO',
+                product_type: 'PRODUCT',
                 template: 'product',
                 requires_shipping: true,
                 inventory_management: 'shopify',
@@ -92,7 +92,7 @@ exports.importHistoweb = async (req, res, next) => {
                 }),
             },
             service: {
-                product_type: 'SERVICIO',
+                product_type: 'SERVICE',
                 template: 'service',
                 requires_shipping: false,
                 inventory_management: null,
@@ -119,27 +119,9 @@ exports.importHistoweb = async (req, res, next) => {
                 include: [{ model: db.product, where: { user_id } }],
             });
 
-            if (variant) {
-                const existingProduct = variant.product;
-
-                // Si el producto está archivado, cambiarlo a "draft"
-                if (existingProduct.status === 'archived') {
-                    await db.change_log.create({
-                        product_id: existingProduct.id,
-                        variant_id: variant.id,
-                        field: 'status',
-                        oldValue: 'archived',
-                        newValue: 'draft',
-                        state: 'update',
-                    });
-                    existingProduct.status = 'draft';
-                    await existingProduct.save();
-                }
-                allProcessedItems.push(existingProduct);
-                continue;
-            }
-
             if (!variant) {
+                console.log('Entra en no hay variante');
+
                 // Crear producto y variante
                 const newProduct = await db.product.create({
                     title: item.name,
@@ -209,7 +191,21 @@ exports.importHistoweb = async (req, res, next) => {
                 continue;
             }
 
+            console.log('Entra en si hay variante');
             const existingProduct = variant.product;
+
+            if (existingProduct.status === 'archived') {
+                await db.change_log.create({
+                    product_id: existingProduct.id,
+                    variant_id: variant.id,
+                    field: 'status',
+                    oldValue: 'archived',
+                    newValue: 'draft',
+                    state: 'update',
+                });
+                existingProduct.status = 'draft';
+                await existingProduct.save();
+            }
 
             // Actualizar precios en la lista de precios predeterminada
             const defaultPriceList = await db.price_list.findOne({
@@ -217,11 +213,15 @@ exports.importHistoweb = async (req, res, next) => {
             });
 
             if (defaultPriceList) {
+                console.log('entra en if');
+
                 const existingPrice = await db.price.findOne({
                     where: { variant_id: variant.id, price_list_id: defaultPriceList.id },
                 });
 
                 if (existingPrice) {
+                    console.log('entra en if');
+
                     const changes = [];
 
                     if (parseFloat(existingPrice.price).toFixed(2) !== price) {
@@ -262,8 +262,11 @@ exports.importHistoweb = async (req, res, next) => {
 
                         existingPrice.updatedAt = new Date();
                         await existingPrice.save();
+                        console.log(`Precio actualizado para el SKU ${item.sku}`);
+
                     }
                 } else {
+                    console.log('else');
                     await db.price.create({
                         variant_id: variant.id,
                         price_list_id: defaultPriceList.id,
@@ -439,7 +442,7 @@ exports.importSerpi = async function (req, res, next) {
                     const variant_vendor = matchingData2 ? matchingData2.descripcion : "";
                     const variant_category = matchingData3 ? matchingData3.descripcion : "";
                     const linea = matchingData4 ? matchingData4.descripcion : "";
-                    const type_article = matchingData6 ? matchingData6.descripcion : "";                    
+                    const type_article = matchingData6 ? matchingData6.descripcion : "";
 
                     // Obtener las descripciones de los campos personalizados
                     const customFieldDescriptions = Array.isArray(product.camposPersonalizados)
@@ -492,21 +495,21 @@ exports.importSerpi = async function (req, res, next) {
 
                         if (all_products === true) {
                             console.log('Entra en IF');
-                            
-                            product_type = "PRODUCTO";
+
+                            product_type = "PRODUCT";
                             template = "product";
                             requires_shipping = true;
                             inventory_management = "shopify";
                         } else {
                             switch (product.idlinea) {
                                 case 1:
-                                    product_type = "SERVICIO";
+                                    product_type = "SERVICE";
                                     template = "service";
                                     requires_shipping = false;
                                     inventory_management = 'manual';
                                     break;
                                 case 2:
-                                    product_type = "PRODUCTO";
+                                    product_type = "PRODUCT";
                                     template = "product";
                                     requires_shipping = true;
                                     inventory_management = "shopify";
@@ -666,6 +669,8 @@ exports.importSerpi = async function (req, res, next) {
                     //console.log('PRECIO EXISTENTE:', existingPrice);
 
                     if (existingPrice) {
+                        console.log('entra en if');
+
                         const changes = [];
 
                         if (parseFloat(existingPrice.price).toFixed(2) !== parseFloat(item.variants[0].price).toFixed(2)) {

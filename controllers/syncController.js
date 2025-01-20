@@ -109,7 +109,7 @@ exports.send = async (req, res, next) => {
 
         if (processedCreate.length > 0) {
             console.log('Encolando productos para crear...');
-            await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
+            //await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 return res.status(200).json({ message: 'Productos encolados exitosamente para creación.' });
             }
@@ -118,7 +118,7 @@ exports.send = async (req, res, next) => {
 
         if (processedUpdate.length > 0) {
             console.log('Encolando productos para actualizar...');
-            await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
+            //await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 return res.status(200).json({ message: 'Productos encolados exitosamente para actualización.' });
             }

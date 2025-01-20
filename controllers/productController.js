@@ -33,11 +33,12 @@ exports.create = async (req, res) => {
     }
 };
 
-async function getProducts({ userId, channelId, state }) {
+
+async function getProducts({ userId, channel, state, page, limit, search, productType, status }) {
     try {
         // Obtener la lista de precios por defecto
         const defaultPriceList = await db.price_list.findOne({
-            where: { default: true }, // Suponiendo que tienes un campo que marca la lista por defecto
+            where: { default: true },
         });
 
         if (!defaultPriceList) {
@@ -47,187 +48,184 @@ async function getProducts({ userId, channelId, state }) {
         // Obtener la última sincronización del usuario en la tabla sync_log
         const lastSync = await db.sync_log.findOne({
             where: { user_id: userId },
-            order: [['createdAt', 'DESC']], // Ordenar por la fecha de creación, descendente
+            order: [['createdAt', 'DESC']],
         });
 
         const lastSyncDate = lastSync ? lastSync.createdAt : null;
 
+        const whereConditions = {
+            user_id: userId,
+        };
+
+        // Agregar filtros opcionales
+        if (search) {
+            whereConditions[db.Sequelize.Op.or] = [
+                { title: { [db.Sequelize.Op.like]: `%${search}%` } }
+            ];
+        }
+
+        if (productType) {
+            whereConditions.product_type = productType;
+        }
+
+        if (status) {
+            whereConditions.status = status;
+        }
+
+        const includeConditions = [
+            {
+                model: db.variant,
+                include: [
+                    {
+                        model: db.price,
+                        include: [
+                            {
+                                model: db.price_list,
+                                where: { id: defaultPriceList.id },
+                            },
+                        ],
+                        required: false,
+                    },
+                ],
+            },
+        ];
+
+        if (channel) {
+            includeConditions.push({
+                model: db.channel_product,
+                where: { channel_id: channel },
+                required: true,
+            });
+        } else {
+            includeConditions.push({
+                model: db.channel_product,
+                required: false,
+            });
+        }
+
+        const offset = (page - 1) * limit;
+
+        let products;
+        let total = 0;  // Inicializar `total` en 0 por defecto
+
         if (state) {
-            // Si el campo state está presente, realizar la búsqueda en change_logs
+            // Buscar en change_logs si se proporciona "state"
             const changeLogs = await db.change_log.findAll({
                 where: {
-                    state: state, // Filtrar por "create" o "update"
-                    createdAt: { [db.Sequelize.Op.gt]: lastSyncDate }, // Fecha superior a la última sincronización
+                    state,
+                    createdAt: { [db.Sequelize.Op.gt]: lastSyncDate },
                 },
                 include: [
                     {
                         model: db.product,
-                        where: { user_id: userId }, // Filtrar por usuario
+                        where: whereConditions,
                         required: true,
-                        include: [
-                            {
-                                model: db.variant,
-                                include: [
-                                    {
-                                        model: db.price,
-                                        include: [
-                                            {
-                                                model: db.price_list,
-                                                where: { id: defaultPriceList.id }, // Usar la lista de precios por defecto
-                                            },
-                                        ],
-                                        required: false,
-                                    },
-                                ],
-                            },
-                            ...(channelId
-                                ? [{
-                                    model: db.channel_product,
-                                    where: { channel_id: channelId },
-                                    required: true,
-                                }]
-                                : []),
-                        ],
+                        include: includeConditions,
                     },
                 ],
+                limit,
+                offset,
             });
-
-            console.log(changeLogs.length);
-
 
             if (!changeLogs || changeLogs.length === 0) {
                 return { rows: [], total: 0 };
             }
 
-            // Formatear la respuesta
-            const formattedProducts = changeLogs.map(changeLog => {
-                const product = changeLog.product;
-                const channelProduct = product.channel_products?.find(
-                    cp => cp.channel_id === channelId
-                );
-
-                return {
-                    id: product.id,
-                    ecommerce_id: channelProduct?.ecommerce_id || null, // Recuperar ecommerce_id
-                    title: product.title,
-                    description: product.description,
-                    vendor: product.vendor,
-                    product_type: product.product_type,
-                    template: product.template,
-                    tags: product.tags,
-                    status: product.status,
-                    variants: product.variants.map(variant => {
-                        const defaultPrice = variant.prices.find(
-                            price => price.price_list_id === defaultPriceList.id
-                        );
-                        return {
-                            variant_id: variant.id,
-                            sku: variant.sku,
-                            title: variant.title,
-                            option_1: variant.option_1,
-                            option_2: variant.option_2,
-                            option_3: variant.option_3,
-                            barcode: variant.barcode,
-                            requires_shipping: variant.requires_shipping,
-                            inventory_policy: variant.inventory_policy,
-                            inventory_management: variant.inventory_management,
-                            inventory_quantity: variant.inventory_quantity,
-                            fullfillment_service: variant.fullfillment_service,
-                            taxable: variant.taxable,
-                            tax_percentage: variant.tax_percentage,
-                            weight: variant.weight,
-                            weight_unit: variant.weight_unit,
-                            image_url: variant.image_url,
-                            price: defaultPrice ? defaultPrice.price : null,
-                            compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
-                        };
-                    }),
-                };
+            products = changeLogs.map(changeLog => changeLog.product);
+            total = changeLogs.length;  // Establecer total en la longitud de los cambios
+        } else {
+            // Buscar directamente en productos
+            const { rows, count } = await db.product.findAndCountAll({
+                where: whereConditions,
+                include: includeConditions,
+                limit,
+                offset,
             });
 
-            return { rows: formattedProducts, total: formattedProducts.length };
-        } else {
-            // Consulta base
-            const query = {
-                where: { user_id: userId },
-                include: [
-                    {
-                        model: db.variant,
-                        include: [
-                            {
-                                model: db.price,
-                                include: [
-                                    {
-                                        model: db.price_list,
-                                        where: { id: defaultPriceList.id }, // Usar la lista de precios por defecto
-                                    },
-                                ],
-                                required: false,
-                            },
-                        ],
-                    },
-                ],
-            };
-
-            if (channelId) {
-                query.include.push({
-                    model: db.channel_product,
-                    where: { channel_id: channelId },
-                    required: true,
-                });
-            } else {
-                query.include.push({
-                    model: db.channel_product,
-                    required: false,
-                });
-            }
-
-            const products = await db.product.findAll(query);
-
-            if (!products || products.length === 0) {
+            if (!rows || rows.length === 0) {
                 return { rows: [], total: 0 };
             }
 
-            const formattedProducts = products.map(product => {
-                const channelProduct = product.channel_products?.find(cp => cp.channel_id === channelId);
-                return {
-                    id: product.id,
-                    title: product.title,
-                    ecommerce_id: channelProduct?.ecommerce_id || null,
-                    variants: product.variants.map(variant => {
-                        const defaultPrice = variant.prices.find(
-                            price => price.price_list_id === defaultPriceList.id
-                        );
-                        return {
-                            variant_id: variant.id,
-                            title: variant.title,
-                            price: defaultPrice ? defaultPrice.price : null, // Mostrar el precio o null si no hay default
-                        };
-                    }),
-                };
-            });
-
-            return { rows: formattedProducts, total: formattedProducts.length };
+            products = rows;
+            total = count || 0; // Asegura que total se define
         }
+
+        const formattedProducts = products.map(product => {
+            const channelProduct = product.channel_products?.find(cp => cp.channel_id === channel);
+            return {
+                id: product.id,
+                ecommerce_id: channelProduct?.ecommerce_id || null,
+                title: product.title,
+                description: product.description,
+                vendor: product.vendor,
+                product_type: product.product_type,
+                template: product.template,
+                tags: product.tags,
+                status: product.status,
+                variants: product.variants.map(variant => {
+                    const defaultPrice = variant.prices.find(
+                        price => price.price_list_id === defaultPriceList.id
+                    );
+                    return {
+                        variant_id: variant.id,
+                        sku: variant.sku,
+                        title: variant.title,
+                        option_1: variant.option_1,
+                        option_2: variant.option_2,
+                        option_3: variant.option_3,
+                        barcode: variant.barcode,
+                        requires_shipping: variant.requires_shipping,
+                        inventory_policy: variant.inventory_policy,
+                        inventory_management: variant.inventory_management,
+                        inventory_quantity: variant.inventory_quantity,
+                        fullfillment_service: variant.fullfillment_service,
+                        taxable: variant.taxable,
+                        tax_percentage: variant.tax_percentage,
+                        weight: variant.weight,
+                        weight_unit: variant.weight_unit,
+                        image_url: variant.image_url,
+                        price: defaultPrice ? defaultPrice.price : null,
+                        compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
+                    };
+                }),
+            };
+        });
+
+        formattedProducts.forEach((product, index) => {
+            // Suponiendo que `state` es proporcionado a través de los `change_logs`
+            if (state === 'create') {
+                formattedProducts[index].state = 'create';
+            } else if (state === 'update') {
+                formattedProducts[index].state = 'update';
+            }
+        });
+
+        return { rows: formattedProducts, total: total };
     } catch (error) {
-        console.error('Error al obtener productos:', error.message);
+        console.error('Error al obtener productos:', error);
         throw error;
     }
 }
 
 exports.list = async (req, res) => {
-    const userId = req.params.user_id;
-    const channelId = req.body.channel_id || null; // Manejar channel_id opcional
-    const state = req.body.state;
+    const userId = req.params.user_id; // Usar query en lugar de params
+    const channel = req.query.channel_id || null;
+    const state = req.query.state || null;
+    const page = parseInt(req.query.page, 10) || 1; // Página predeterminada
+    const limit = parseInt(req.query.limit, 10) || 10; // Límite predeterminado
+    const search = req.query.search || null;
+    const productType = req.query.product_type || null;
+    const status = req.query.status || null;
 
     try {
-        const result = await getProducts({ userId, channelId, state });
+        const result = await getProducts({ userId, channel, state, page, limit, search, productType, status });
         return res.status(200).json(result);
     } catch (error) {
         console.error('Error al listar productos:', error.message);
         return res.status(500).json({ message: 'Hubo un error al listar los productos.' });
     }
 };
+
 
 
 exports.update = async (req, res) => {
@@ -253,7 +251,7 @@ exports.update = async (req, res) => {
                 message: 'Producto relacionado no encontrado en la tabla product.',
             });
         }
-        
+
         await product.update({
             status: req.body.status,
         });

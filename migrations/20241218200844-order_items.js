@@ -74,6 +74,12 @@ module.exports = {
       line_total_2: {
         type: Sequelize.FLOAT,
       },
+      branch_id: {
+        type: Sequelize.INTEGER,
+      },
+      branch_name: {
+        type: Sequelize.STRING,
+      },
       cupon_produc_value: {
         type: Sequelize.FLOAT
       },

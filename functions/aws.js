@@ -30,9 +30,9 @@ async function sendToSQS(messages, DelaySeconds) {
     }
 }
 
-async function recursiveEnqueue(products, domain_shopify, token_shopify, DelaySeconds) {
+async function recursiveEnqueue(products, shopify_domain, token_shopify, DelaySeconds) {
     console.log(products);
-    console.log(domain_shopify);
+    console.log(shopify_domain);
     console.log(token_shopify);
     
     
@@ -42,33 +42,33 @@ async function recursiveEnqueue(products, domain_shopify, token_shopify, DelaySe
     const message = {
         "operation": "create",
         "products": group,
-        "domain_shopify": domain_shopify,
+        "shopify_domain": shopify_domain,
         "token_shopify": token_shopify
     };
     const succeed = await sendToSQS([JSON.stringify(message)], DelaySeconds);
 
     if (products.length > 0) {
         console.log('Creando');
-        return recursiveEnqueue(products, domain_shopify, token_shopify, DelaySeconds + 32);
+        return recursiveEnqueue(products, shopify_domain, token_shopify, DelaySeconds + 32);
     } else {
         return succeed;
     }
 }
 
-async function recursiveEnqueueUpdate(products, domain_shopify, token_shopify, DelaySeconds) {
+async function recursiveEnqueueUpdate(products, shopify_domain, token_shopify, DelaySeconds) {
     console.log('Enqueuing...');
     const group = products.splice(0, 30);
     const message = {
         "operation": "update",
         "products": group,
-        "domain_shopify": domain_shopify,
+        "shopify_domain": shopify_domain,
         "token_shopify": token_shopify
     };
     const succeed = await sendToSQS([JSON.stringify(message)], DelaySeconds);
 
     if (products.length > 0) {
         console.log('Actualizando');
-        return recursiveEnqueueUpdate(products, domain_shopify, token_shopify, DelaySeconds + 30);
+        return recursiveEnqueueUpdate(products, shopify_domain, token_shopify, DelaySeconds + 30);
     } else {
         return succeed;
     }

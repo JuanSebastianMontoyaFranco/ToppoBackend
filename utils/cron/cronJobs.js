@@ -27,7 +27,7 @@ cron.schedule('0 * * * *', async () => {
             const createResult = await getProducts({ userId, channel: "", state: 'create', page: 1, limit: 100000 });
             console.log('RESULTADO CREAR:', createResult);
 
-            const updateResult = await getProducts({ userId, channel: "", state: 'update', page: 1, limit: 100000 });
+            const updateResult = await getProducts({ userId, channel: 1, state: 'update', page: 1, limit: 100000 });
             console.log('RESULTADO ACTUALIZAR:', updateResult);
 
             const create = createResult.rows;

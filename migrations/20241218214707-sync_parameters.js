@@ -35,6 +35,15 @@ module.exports = {
       compare_at_price: {
         type: Sequelize.BOOLEAN
       },
+      tags: {
+        type: Sequelize.BOOLEAN
+      },
+      vendor: {
+        type: Sequelize.BOOLEAN
+      },
+      description: {
+        type: Sequelize.BOOLEAN
+      },
       price_list_serpi: {
         type: Sequelize.INTEGER
       },

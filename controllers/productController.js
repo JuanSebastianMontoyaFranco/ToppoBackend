@@ -91,12 +91,14 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
         ];
 
         if (channel) {
+            //console.log('Canal:', channel);
             includeConditions.push({
                 model: db.channel_product,
                 where: { channel_id: channel },
                 required: true,
             });
         } else {
+            console.log('Canal no proporcionado.');
             includeConditions.push({
                 model: db.channel_product,
                 required: false,
@@ -151,10 +153,16 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
         }
 
         const formattedProducts = products.map(product => {
+            //console.log('Tipo de channel:', typeof channel, 'Valor de channel:', channel);
+            //console.log('Producto:', product);
+            
             const channelProduct = product.channel_products?.find(cp => cp.channel_id === channel);
+
+            //console.log('Channel Products:', product.channel_products);
+            
             return {
                 id: product.id,
-                ecommerce_id: channelProduct?.ecommerce_id || null,
+                ecommerce_id: parseInt(channelProduct?.ecommerce_id) || null,
                 title: product.title,
                 description: product.description,
                 vendor: product.vendor,
@@ -209,7 +217,7 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
 
 exports.list = async (req, res) => {
     const userId = req.params.user_id; // Usar query en lugar de params
-    const channel = req.query.channel_id || null;
+    const channel = parseInt(req.query.channel) || null;
     const state = req.query.state || null;
     const page = parseInt(req.query.page, 10) || 1; // Página predeterminada
     const limit = parseInt(req.query.limit, 10) || 10; // Límite predeterminado
@@ -289,6 +297,52 @@ exports.update = async (req, res) => {
         });
     }
 };
+
+exports.detail = async (req, res, next) => {
+    const product_id = req.query.product_id;
+
+    const defaultPriceList = await db.price_list.findOne({
+        where: { default: true },
+    });
+
+    try {
+        const product = await db.product.findAndCountAll({
+            where: { id: product_id },
+            include: [{
+                model: db.variant,
+                include: [
+                    {
+                        model: db.price,
+                        include: [
+                            {
+                                model: db.price_list,
+                                where: { id: defaultPriceList.id },
+                            },
+                        ],
+                        required: false,
+                    },
+                ],
+            }],
+        });
+        if (product.count > 0) {
+            res.status(200).json({
+                rows: product.rows,
+                total: product.count
+            });
+        } else {
+            res.status(200).send({
+                rows: [],
+                total: 0,
+                error: 'No hay registros en el sistema.'
+            });
+        }
+    } catch (error) {
+        res.status(500).send({
+            error: '¡Error en el servidor!'
+        });
+        next(error);
+    }
+}
 
 
 module.exports.getProducts = getProducts;

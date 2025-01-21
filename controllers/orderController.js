@@ -158,3 +158,110 @@ exports.create = async (req, res, next) => {
         });
     }
 };
+
+
+exports.list = async (req, res, next) => {
+    const { user_id } = req.params;
+    const { state } = req.query;
+
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const search = req.query.search || '';
+
+        const offset = (page - 1) * limit;
+
+        const searchCondition = search ? {
+            [Op.or]: [
+                { ecommerce_id: { [Op.like]: `%${search}%` } },
+                { billing_first_name: { [Op.like]: `%${search}%` } },
+                { billing_last_name: { [Op.like]: `%${search}%` } },
+                { shipping_first_name: { [Op.like]: `%${search}%` } },
+                { shipping_last_name: { [Op.like]: `%${search}%` } }
+
+            ]
+        } : {};
+
+        const whereCondition = {
+            user_id: user_id,
+            ...searchCondition,
+            ...(state ? { state: state } : {}),
+        };
+
+        const orders = await db.order.findAndCountAll({
+            limit: limit,
+            offset: offset,
+            where: whereCondition,
+            include: [
+                {
+                    model: db.order_item
+                }
+            ]
+        });
+
+        const totalOrders = await db.order.count({
+            where: whereCondition,
+        });
+
+        if (orders.count > 0) {
+            // Agregar datos del cliente dentro de cada orden
+            const ordersWithClient = orders.rows.map(order => ({
+                ...order.toJSON(), // Convierte la instancia de Sequelize a un objeto plano
+                client: {
+                    name: order.billing_first_name,
+                    email: order.billing_email
+                }
+            }));
+
+            res.status(200).json({
+                rows: ordersWithClient,
+                total: totalOrders
+            });
+        } else {
+            res.status(200).send({
+                rows: [],
+                total: 0,
+                message: 'Aún no has agregado ordenes.'
+            });
+        }
+    } catch (error) {
+        console.error('Error en la consulta de ordenes:', error);
+        return res.status(500).json({
+            error: '¡Error en el servidor!',
+            message: error.message
+        });
+    }
+};
+
+
+exports.detail = async (req, res, next) => {
+    const order_id = req.query.order_id;
+    console.log(order_id);
+    
+    try {
+        const order = await db.order.findAndCountAll({
+            where: { order_id: order_id },
+            include: [{
+                model: db.order_item,
+            }],
+        });
+        if (order.count > 0) {
+            res.status(200).json({
+                rows: order.rows,
+                total: order.count
+            });
+        } else {
+            res.status(200).send({
+                rows: [],
+                total: 0,
+                error: 'No hay registros en el sistema.'
+            });
+        }
+    } catch (error) {
+        res.status(500).send({
+            error: '¡Error en el servidor!'
+        });
+        next(error);
+    }
+}
+

@@ -50,6 +50,7 @@ module.exports = (sequelize, DataTypes) => {
             shipping_state: DataTypes.STRING, // Departamento del usuario de envio
             shipping_country: DataTypes.STRING, // Pais del usuario de envio EX. CO, US, MX
             branch_id: DataTypes.INTEGER, // Id de la bodega, este si va desde SERPI 
+            whorehouse_id: DataTypes.INTEGER, 
             pricelist_id: DataTypes.INTEGER, // Id del precio listado, este si va desde SERPI
             purchase_number: DataTypes.BIGINT, // Numero de orden de la compra, SERPI Ex. 1030
             order_total: DataTypes.FLOAT, // Total de la orden

@@ -5,10 +5,24 @@ const { recursiveEnqueue, recursiveEnqueueUpdate } = require('../functions/aws')
 
 exports.send = async (req, res, next) => {
     const user_id = req?.params?.user_id || req.body.user_id;
-    const { create, update, shopify_domain, token_shopify, fromCron = false } = req.body;
+    const { create, update, fromCron = false } = req.body;
 
     console.log('--- INICIO DEL PROCESO ---');
     console.log('ID de usuario:', user_id);
+
+    const userCredentials = await db.credential.findOne({ where: { user_id: user_id } });
+
+    if (!userCredentials) {
+        console.log('No se encontraron credenciales para el usuario:', user_id);
+        if (!fromCron) {
+            return res.status(404).json({ message: 'No se encontraron credenciales para este usuario.' });
+        }
+        console.log('No se encontraron credenciales para el usuario en cron');
+        return; // Si es desde cron, simplemente no respondemos
+    }
+
+    const { shopify_domain, token_shopify } = userCredentials.dataValues;
+
     console.log('Dominio Shopify:', shopify_domain);
     console.log('Token Shopify:', token_shopify);
     console.log('Productos para crear:', JSON.stringify(create, null, 2));
@@ -29,7 +43,7 @@ exports.send = async (req, res, next) => {
             return; // Si es desde cron, simplemente no respondemos
         }
 
-        const { product_type, price, compare_at_price } = userParameters.dataValues;
+        const { product_type, price, compare_at_price, tags, vendor, description } = userParameters.dataValues;
         //console.log('Parámetros extraídos:', { product_type, price, compare_at_price });
 
         // Función para procesar los productos
@@ -78,7 +92,7 @@ exports.send = async (req, res, next) => {
                             ...(!compare_at_price ? ['compare_at_price'] : []),
                         ];
                         fieldsToDelete.forEach(field => delete variant[field]);
-                        console.log(`Variante después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(variant, null, 2));
+                        //console.log(`Variante después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(variant, null, 2));
 
                         return variant;
                     });
@@ -86,16 +100,16 @@ exports.send = async (req, res, next) => {
 
                 const fieldsToDelete = [
                     'user_id',
-                    'vendor',
-                    'description',
+                    ...(!vendor ? ['vendor'] : []),
+                    ...(!description ? ['description'] : []),
                     'template',
-                    'tags',
+                    ...(isUpdate && tags === false ? ['tags'] : []),
+                    ...(!product_type ? ['product_type'] : []),
                     'createdAt',
                     'updatedAt',
-                    ...(!product_type ? ['product_type'] : []),
                 ];
                 fieldsToDelete.forEach(field => delete product[field]);
-                console.log(`Producto después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(product, null, 2));
+                //console.log(`Producto después de eliminar campos (${isUpdate ? 'ACTUALIZAR' : 'CREAR'}):`, JSON.stringify(product, null, 2));
 
                 return product;
             });
@@ -103,14 +117,16 @@ exports.send = async (req, res, next) => {
 
         // Verificar que create y update sean arrays válidos
         const processedCreate = Array.isArray(create) ? processProducts(create) : [];
-        //console.log('Productos procesados para crear:', JSON.stringify(processedCreate, null, 2));
+        console.log('Productos procesados para crear:', JSON.stringify(processedCreate, null, 2));
         const processedUpdate = Array.isArray(update) ? processProducts(update, true) : [];
         //console.log('Productos procesados para actualizar:', JSON.stringify(processedUpdate, null, 2));
 
         if (processedCreate.length > 0) {
             console.log('Encolando productos para crear...');
+            console.log('Productos a encolar:', processedCreate);
             //await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
+                await syncFunctions.logSync(user_id, 'Manual');
                 return res.status(200).json({ message: 'Productos encolados exitosamente para creación.' });
             }
             console.log('Productos encolados para creación automaticamente (ejecución cron)');
@@ -118,19 +134,13 @@ exports.send = async (req, res, next) => {
 
         if (processedUpdate.length > 0) {
             console.log('Encolando productos para actualizar...');
-            //await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
+            console.log('Productos a encolar:', processedUpdate);
+            await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
+                await syncFunctions.logSync(user_id, 'Manual');
                 return res.status(200).json({ message: 'Productos encolados exitosamente para actualización.' });
             }
             console.log('Productos encolados para actualización automaticamente (ejecución cron)');
-        }
-
-        if (!fromCron) {
-            console.log('Registrando proceso manual...');
-            await syncFunctions.logSync(user_id, 'Manual');
-            return res.status(200).json({ message: 'Proceso completado manualmente.' });
-        } else {
-            console.log('Proceso completado automaticamente (ejecución cron).');
         }
 
     } catch (error) {

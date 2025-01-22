@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             price_list.belongsTo(models.user, { foreignKey: 'user_id' });
             price_list.hasMany(models.price, { foreignKey: 'price_list_id' });
-
+            price_list.hasMany(models.condition, { foreignKey: 'price_list_id' });
         }
     };
     price_list.init({

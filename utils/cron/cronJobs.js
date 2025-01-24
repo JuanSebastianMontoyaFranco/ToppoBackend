@@ -3,6 +3,7 @@ const db = require('../../models');
 const syncFunctions = require('../../functions/sync');
 const { getProducts } = require('../../controllers/productController');
 const { send } = require('../../controllers/syncController'); // Importa tu función sendProducts
+const { autoImport } = require('../../controllers/importController'); // Importa tu función sendProducts
 
 //MINUTO: * * * * *
 //5 MINUTOS: */5 * * * *
@@ -35,6 +36,8 @@ cron.schedule('0 * * * *', async () => {
 
             console.log(update);
 
+            await syncFunctions.logSync(userId, 'Automatic');
+
             if (create.length > 0 || update.length > 0) {
                 const userCredentials = await db.credential.findOne({ where: { user_id: userId } });
                 if (userCredentials) {
@@ -42,9 +45,6 @@ cron.schedule('0 * * * *', async () => {
 
                     console.log('DOMINIO ENVIADO:', shopify_domain);
                     console.log('TOKEN ENVIADO:', token_shopify);
-
-                    await syncFunctions.logSync(userId, 'Automatic');
-
                     // Llama a send con el parámetro fromCron
                     await send({
                         body: {
@@ -64,4 +64,10 @@ cron.schedule('0 * * * *', async () => {
     } catch (error) {
         console.error('Error en el cron job:', error);
     }
+});
+
+
+cron.schedule('10 * * * *', () => {
+    console.log('Ejecutando importación automática de Histoweb...');
+    autoImport();
 });

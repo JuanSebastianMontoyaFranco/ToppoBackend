@@ -5,7 +5,14 @@ const getEncryptedText = require('../utils/encrypt');
 const auxiliaryFunctions = require('../functions/auxiliary')
 
 exports.importHistoweb = async (req, res, next) => {
-    const { user_id } = req.params;
+    console.log('Llama a la funcion de importar histoweb');
+
+    console.log(req);
+    
+    const { user_id } = req.params || req.body;
+
+    console.log('ID del usuario:', user_id);
+    
 
     try {
         // Buscar en la tabla credentials los datos del usuario
@@ -52,8 +59,8 @@ exports.importHistoweb = async (req, res, next) => {
         );
 
         // Seleccionar dos productos y dos servicios
-        const products = allData.filter(item => item.type === 'product').slice(0, 5);
-        const services = allData.filter(item => item.type === 'service').slice(0, 5);
+        const products = allData.filter(item => item.type === 'product').slice(0, 3);
+        const services = allData.filter(item => item.type === 'service').slice(0, 3);
         const selectedData = [...products, ...services];
 
         const incomingSkus = selectedData.map(item => item.sku);
@@ -327,7 +334,7 @@ exports.importHistoweb = async (req, res, next) => {
 };
 
 exports.importSerpi = async function (req, res, next) {
-    const { user_id } = req.params;
+    const { user_id } = req.params || req.body;
 
     try {
         // Obtener credenciales y parámetros
@@ -765,3 +772,307 @@ exports.importSerpi = async function (req, res, next) {
         res.status(500).json({ error: "Error al importar datos." });
     }
 };
+
+exports.importShopify = async (req, res, next) => {
+    console.log('Llama a la función de importar productos desde Shopify');
+
+    const { user_id } = req.params || req.body;
+
+    console.log('ID del usuario:', user_id);
+
+    try {
+        // Buscar credenciales de Shopify para el usuario
+        const credentials = await db.credential.findOne({ where: { user_id } });
+
+        if (!credentials) {
+            return res.status(404).json({ error: 'No se encontraron credenciales para el usuario especificado.' });
+        }
+
+        const { shopify_domain, token_shopify } = credentials;
+
+        console.log(shopify_domain);
+        console.log(token_shopify);
+        
+        
+
+        if (!shopify_domain || !token_shopify) {
+            return res.status(400).json({ error: 'Las credenciales de Shopify están incompletas.' });
+        }
+
+        let shopifyApiUrl = `https://${shopify_domain}.myshopify.com/admin/api/2023-07/products.json`;
+        const productsFromShopify = [];
+
+        console.log(shopifyApiUrl);
+        
+
+        // Manejar la paginación para traer todos los productos
+        while (shopifyApiUrl) {
+            const response = await axios.get(shopifyApiUrl, {
+                headers: {
+                    'X-Shopify-Access-Token': token_shopify
+                },
+            });
+
+            if (response.data && response.data.products) {
+                productsFromShopify.push(...response.data.products);
+            }
+
+            // Obtener la URL para la siguiente página de la cabecera "Link"
+            const linkHeader = response.headers['link'];
+            const nextLinkMatch = linkHeader && linkHeader.match(/<([^>]+)>; rel="next"/);
+            shopifyApiUrl = nextLinkMatch ? nextLinkMatch[1] : null;
+        }
+
+        if (!productsFromShopify || productsFromShopify.length === 0) {
+            return res.status(200).json({ message: 'No se encontraron productos en Shopify.' });
+        }
+
+        const incomingSkus = productsFromShopify.flatMap(product => product.variants.map(variant => variant.sku));
+
+        // Identificar productos obsoletos en la base de datos
+        const outdatedProducts = await db.product.findAll({
+            where: {
+                user_id,
+                status: { [Op.not]: 'archived' },
+                '$variants.sku$': { [Op.notIn]: incomingSkus },
+            },
+            include: [{ model: db.variant }],
+        });
+
+        for (const product of outdatedProducts) {
+            await db.change_log.create({
+                product_id: product.id,
+                variant_id: null,
+                field: 'status',
+                oldValue: product.status,
+                newValue: 'archived',
+                state: 'update',
+            });
+            product.status = 'archived';
+            await product.save();
+        }
+
+        const allProcessedItems = [];
+
+        for (const shopifyProduct of productsFromShopify) {
+            const existingProduct = await db.product.findOne({
+                where: { user_id, title: shopifyProduct.title },
+                include: [{ model: db.variant }],
+            });
+
+            //console.log(shopifyProduct);
+            
+
+            if (!existingProduct) {
+                console.log('Producto no encontrado en la base de datos, creando nuevo.');
+
+                // Crear producto
+                const newProduct = await db.product.create({
+                    title: shopifyProduct.title,
+                    user_id,
+                    status: 'draft',
+                    description: shopifyProduct.body_html || '',
+                    product_type: shopifyProduct.product_type || '',
+                    vendor: shopifyProduct.vendor || '',
+                });
+
+                // Crear variantes
+                for (const variant of shopifyProduct.variants) {
+                    await db.variant.create({
+                        product_id: newProduct.id,
+                        user_id: newProduct.user_id,
+                        title: variant.title,
+                        sku: variant.sku,
+                        price: variant.price,
+                        inventory_quantity: variant.inventory_quantity,
+                        taxable: variant.taxable,
+                        weight: variant.weight,
+                        weight_unit: variant.weight_unit,
+                    });
+                }
+
+                try {
+                    console.log('Creando registro en channel_product');
+
+                    if (!shopifyProduct.id) {
+                        console.error('El ID de Shopify no está disponible para este producto.');
+                        return; // Detener la ejecución si no hay ID
+                    }
+
+                    const newChannelProduct = await db.channel_product.create({
+                        product_id: newProduct.id,
+                        channel_id: 1,  // Verifica si este valor es correcto
+                        ecommerce_id: shopifyProduct.id,
+                    });
+                    console.log('Registro creado en channel_product', newChannelProduct);
+                } catch (err) {
+                    console.error('Error al guardar el registro en channel_product:', err);
+                }
+
+                allProcessedItems.push(newProduct);
+                continue;
+            }
+
+            console.log('Producto existente encontrado, actualizando.');
+
+            // Actualizar producto existente
+            const changes = [];
+
+            if (existingProduct.title !== shopifyProduct.title) {
+                changes.push({
+                    field: 'title',
+                    oldValue: existingProduct.title,
+                    newValue: shopifyProduct.title,
+                });
+                existingProduct.title = shopifyProduct.title;
+            }
+
+            if (changes.length > 0) {
+                await Promise.all(
+                    changes.map(change =>
+                        db.change_log.create({
+                            product_id: existingProduct.id,
+                            variant_id: null,
+                            field: change.field,
+                            oldValue: change.oldValue,
+                            newValue: change.newValue,
+                            state: 'update',
+                        })
+                    )
+                );
+            }
+
+            await existingProduct.save();
+
+            // Actualizar variantes
+            for (const shopifyVariant of shopifyProduct.variants) {
+                const variant = await db.variant.findOne({
+                    where: { product_id: existingProduct.id, sku: shopifyVariant.sku },
+                });
+
+                if (!variant) {
+                    console.log('Creando nueva variante.');
+                    await db.variant.create({
+                        product_id: existingProduct.id,
+                        user_id: existingProduct.user_id,
+                        title: shopifyVariant.title,
+                        sku: shopifyVariant.sku,
+                        price: shopifyVariant.price,
+                        inventory_quantity: shopifyVariant.inventory_quantity,
+                        taxable: shopifyVariant.taxable,
+                        weight: shopifyVariant.weight,
+                        weight_unit: shopifyVariant.weight_unit,
+                    });
+                } else {
+                    console.log('Actualizando variante existente.');
+
+                    const variantChanges = [];
+
+                    if (variant.price !== shopifyVariant.price) {
+                        variantChanges.push({
+                            field: 'price',
+                            oldValue: variant.price,
+                            newValue: shopifyVariant.price,
+                        });
+                        variant.price = shopifyVariant.price;
+                    }
+
+                    if (variantChanges.length > 0) {
+                        await Promise.all(
+                            variantChanges.map(change =>
+                                db.change_log.create({
+                                    product_id: existingProduct.id,
+                                    variant_id: variant.id,
+                                    field: change.field,
+                                    oldValue: change.oldValue,
+                                    newValue: change.newValue,
+                                    state: 'update',
+                                })
+                            )
+                        );
+
+                        await variant.save();
+                    }
+                }
+            }
+
+            allProcessedItems.push(existingProduct);
+        }
+
+        res.status(200).json({
+            message: 'Productos procesados correctamente',
+            products: allProcessedItems,
+        });
+    } catch (error) {
+        console.error('Error al importar productos desde Shopify:', error);
+
+        if (error.isAxiosError) {
+            return res.status(500).json({ error: 'Error en la solicitud a la API de Shopify.' });
+        }
+
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+
+
+exports.autoImport = async function () {
+    console.log('Entra en la función de autoimportar');
+    
+    try {
+      const credentials = await db.credential.findAll({
+        attributes: ['user_id', 'product_main'], // Incluir product_main en los atributos
+      });
+  
+      if (!credentials || credentials.length === 0) {
+        console.log('No hay credenciales disponibles para importar datos.');
+        return;
+      }
+  
+      for (const credential of credentials) {
+        const { user_id, product_main } = credential;
+  
+        console.log('ID del usuario:', user_id, 'Product Main:', product_main);
+  
+        const req = {
+          body: { user_id },
+        };
+        const res = {
+          status: (code) => ({
+            json: (response) => {
+              if (code === 200) {
+                console.log(
+                  `Datos importados exitosamente para el usuario con ID ${user_id}.`
+                );
+              } else {
+                console.error(
+                  `Error al importar datos para el usuario con ID ${user_id}:`,
+                  response.error
+                );
+              }
+            },
+          }),
+        };
+  
+        try {
+          // Determinar qué función llamar basado en product_main
+          if (product_main === 1) {
+            console.log('Llamando a importSerpi');
+            await exports.importSerpi(req, res);
+          } else if (product_main === 2) {
+            console.log('Llamando a importHistoweb');
+            await exports.importHistoweb(req, res);
+          } else {
+            console.warn(`Valor inesperado de product_main: ${product_main}`);
+          }
+        } catch (error) {
+          console.error(
+            `Error al procesar al usuario con ID ${user_id}:`,
+            error.message
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener credenciales:', error.message);
+    }
+  };
+  

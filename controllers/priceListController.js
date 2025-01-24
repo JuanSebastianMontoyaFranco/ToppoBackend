@@ -1,5 +1,6 @@
 const db = require('../models');
 const { Op } = require('sequelize');
+
 exports.create = async (req, res, next) => {
     const user_id = req.params.user_id;
 

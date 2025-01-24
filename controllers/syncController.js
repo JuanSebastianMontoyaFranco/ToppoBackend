@@ -124,7 +124,7 @@ exports.send = async (req, res, next) => {
         if (processedCreate.length > 0) {
             console.log('Encolando productos para crear...');
             console.log('Productos a encolar:', processedCreate);
-            //await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
+            await recursiveEnqueue(processedCreate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 await syncFunctions.logSync(user_id, 'Manual');
                 return res.status(200).json({ message: 'Productos encolados exitosamente para creación.' });

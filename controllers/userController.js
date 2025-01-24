@@ -31,8 +31,54 @@ exports.create = async (req, res, next) => {
                     image_url: req.body.image_url
                 });
 
+                const user_id = newUser.id; // Asignar el ID del usuario recién creado
+
+                const defaultPriceList = await db.price_list.findOne({
+                    where: { user_id, default: true },
+                    include: [
+                        {
+                            model: db.price,
+                            include: [
+                                {
+                                    model: db.variant,
+                                    include: [
+                                        {
+                                            model: db.product
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                });
+
+                if (!defaultPriceList) {
+                    // Crear la nueva lista de precios
+                    const newPriceList = await db.price_list.create({
+                        user_id: user_id,
+                        default: true,
+                        name: 'Lista predeterminada',
+                        description: 'Lista predeterminada',
+                    });
+
+                    // Crear una condición asociada a la nueva lista de precios
+                    const condition = await db.condition.create({
+                        price_list_id: newPriceList.id,
+                        check_visibility_price: false,
+                        check_percentage: req.body.check_percentage || false,
+                        percentage: req.body.percentage || 0,
+                        check_base_price: false,
+                        base_price: 0,
+                        check_conditional: false,
+                        check_min_qty: false,
+                        min_qty: 0,
+                        check_min_price: false,
+                        min_price: 0,
+                    });
+                }
+
                 return res.status(200).send({
-                    message: 'Usuario creado con éxito. Se ha enviado un correo de confirmación.'
+                    message: 'Usuario y lista de precios creados con éxito. Se ha enviado un correo de confirmación.'
                 });
             } else {
                 return res.status(400).send({

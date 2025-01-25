@@ -6,9 +6,10 @@ exports.update = async (req, res, next) => {
 
     try {
         const {
-            master,
+            product_main,
+            order_main,
             store_domain,
-            domain_shopify,
+            shopify_domain,
             token_shopify,
             token_serpi,
             secret_key_serpi,
@@ -29,9 +30,10 @@ exports.update = async (req, res, next) => {
         const [credential, created] = await db.credential.findOrCreate({
             where: { user_id },
             defaults: {
-                master,
+                product_main,
+                order_main,
                 store_domain,
-                domain_shopify,
+                shopify_domain,
                 token_shopify,
                 token_serpi,
                 secret_key_serpi,
@@ -45,9 +47,10 @@ exports.update = async (req, res, next) => {
 
         if (!created) {
             // Si el registro ya existía, actualizarlo
-            credential.master = master,
+            credential.product_main = product_main,
+            credential.order_main = order_main,
                 credential.store_domain = store_domain,
-                credential.domain_shopify = domain_shopify;
+                credential.shopify_domain = shopify_domain;
             credential.token_shopify = token_shopify;
             credential.token_serpi = token_serpi;
             credential.secret_key_serpi = secret_key_serpi;

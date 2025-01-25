@@ -9,6 +9,7 @@ const { autoImport } = require('../../controllers/importController'); // Importa
 //5 MINUTOS: */5 * * * *
 //HORA: 0 * * * *
 //30 MIN DE CADA HORA
+/*
 cron.schedule('0 * * * *', async () => {
     try {
         const usersToSync = await db.sync_parameter.findAll({
@@ -71,3 +72,5 @@ cron.schedule('10 * * * *', () => {
     console.log('Ejecutando importación automática de Histoweb...');
     autoImport();
 });
+
+*/

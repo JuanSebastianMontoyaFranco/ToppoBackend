@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
     sync_parameter.init({
         user_id: DataTypes.INTEGER,
         sync_status: DataTypes.BOOLEAN,
+        title: DataTypes.BOOLEAN,
         product_type: DataTypes.BOOLEAN,
         price: DataTypes.BOOLEAN,
         compare_at_price: DataTypes.BOOLEAN,

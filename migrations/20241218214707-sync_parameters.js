@@ -26,6 +26,9 @@ module.exports = {
       security_inventory: {
         type: Sequelize.BOOLEAN
       },
+      title: {
+        type: Sequelize.BOOLEAN,
+      },
       product_type: {
         type: Sequelize.BOOLEAN
       },

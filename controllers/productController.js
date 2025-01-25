@@ -38,7 +38,7 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
     try {
         // Obtener la lista de precios por defecto
         const defaultPriceList = await db.price_list.findOne({
-            where: { default: true },
+            where: { user_id: userId, default: true },
         });
 
         if (!defaultPriceList) {
@@ -159,6 +159,9 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
             const channelProduct = product.channel_products?.find(cp => cp.channel_id === channel);
 
             //console.log('Channel Products:', product.channel_products);
+
+            console.log(product.variants);
+            
             
             return {
                 id: product.id,
@@ -174,6 +177,9 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
                     const defaultPrice = variant.prices.find(
                         price => price.price_list_id === defaultPriceList.id
                     );
+
+                    console.log(defaultPrice);
+                    
                     return {
                         variant_id: variant.id,
                         sku: variant.sku,
@@ -299,10 +305,11 @@ exports.update = async (req, res) => {
 };
 
 exports.detail = async (req, res, next) => {
+    const userId = req.params.user_id;
     const product_id = req.query.product_id;
 
     const defaultPriceList = await db.price_list.findOne({
-        where: { default: true },
+        where: { user_id: userId, default: true },
     });
 
     try {

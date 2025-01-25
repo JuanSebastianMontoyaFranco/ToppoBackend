@@ -265,3 +265,103 @@ exports.detail = async (req, res, next) => {
     }
 }
 
+exports.listHistoweb = async (req, res, next) => {
+    const { user_id } = req.params;
+
+    try {
+        const whereClause = {
+            state: 0,
+            status: 'paid',
+        };
+
+        // Agregar filtro por user_id si se proporciona
+        if (user_id) {
+            whereClause.user_id = user_id;
+        }
+
+        const orders = await db.order.findAll({
+            order: [['date_create', 'DESC']],
+            where: whereClause,
+            include: {
+                model: db.order_item,
+            },
+            limit: 1000,
+        });
+
+        const result = await Promise.all(
+            orders.map(async (order) => {
+                const orderData = {
+                    order_ref: order.order_id.toString(),
+                    id_shopify: order.ecommerce_name,
+                    order_date: functions.formatDate2(order.date_create),
+                    paid_date: functions.formatDate2(order.date_update),
+                    order_status: order.status === "paid" ? "wwc_processing" : order.status,
+                    payment_method: order.payment === "Wompi"
+                        ? "wompi_wwp"
+                        : order.payment === "Addi Payment"
+                            ? "addi"
+                            : order.payment,
+                    transaction_id: order.transaction_id,
+                    //customer_ip_address: order.customer_ip_address,
+                    //customer_user: order.customer_user,
+                    billing_cedula: order.billing_id,
+                    billing_first_name: order.billing_first_name,
+                    billing_last_name: order.billing_last_name,
+                    billing_email: order.billing_email,
+                    billing_phone: order.billing_phone,
+                    billing_address_1: order.billing_address_1,
+                    billing_address_2: order.billing_address_2,
+                    billing_city_id: parseInt(order.billing_city_id),
+                    billing_city_name: order.billing_format_city,
+                    billing_typedcity: order.billing_city,
+                    //billing_state: order.billing_state,
+                    //billing_country: order.billing_country,
+                    shipping_first_name: order.shipping_first_name,
+                    shipping_last_name: order.shipping_last_name,
+                    shipping_address_1: order.shipping_address_1,
+                    shipping_address_2: order.shipping_address_2,
+                    shipping_city_id: parseInt(order.shipping_city_id ? order.shipping_city_id : 0),
+                    shipping_city_name: order.shipping_format_city,
+                    shipping_typedcity: order.shipping_city,
+                    //shipping_state: order.shipping_state,
+                    //shipping_country: order.shipping_country,
+                    shipping_notes: "",
+                    order_total: order.order_total,
+                    cupon_code: order.cupon_code,
+                    order_items: [],
+                };
+
+                if (order.order_items && order.order_items.length > 0) {
+                    await Promise.all(
+                        order.order_items.map(async (item) => {
+                            orderData.order_items.push({
+                                item_id: item.product_id,
+                                item_sku: item.sku,
+                                item_name: item.item_name,
+                                branch_id: item.branch_id || 0,
+                                branch_name: item.branch_name || "",
+                                unitario_coniva: parseInt(item.unitary_price_tax_2),
+                                valor_dcto: item.discounted_value_2,
+                                valor_bruto: item.base_price_2,
+                                qty: item.qty,
+                                line_total: item.line_total_2,
+                                cupon_produc_value: 0,
+                                cupon_servic_value: 0,
+                            });
+                        })
+                    );
+                }
+
+                return orderData;
+            })
+        );
+
+        return res.status(200).json({ orders: result });
+    } catch (error) {
+        console.error('Error en la consulta de órdenes:', error);
+        return res.status(500).json({
+            error: '¡Error en el servidor!',
+            message: error.message
+        });
+    }
+};

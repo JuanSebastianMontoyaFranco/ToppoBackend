@@ -43,7 +43,7 @@ exports.send = async (req, res, next) => {
             return; // Si es desde cron, simplemente no respondemos
         }
 
-        const { product_type, price, compare_at_price, tags, vendor, description } = userParameters.dataValues;
+        const { title, product_type, price, compare_at_price, tags, vendor, description } = userParameters.dataValues;
         //console.log('Parámetros extraídos:', { product_type, price, compare_at_price });
 
         // Función para procesar los productos
@@ -104,6 +104,7 @@ exports.send = async (req, res, next) => {
                     ...(!description ? ['description'] : []),
                     'template',
                     ...(isUpdate && tags === false ? ['tags'] : []),
+                    ...(!title ? ['title'] : []),
                     ...(!product_type ? ['product_type'] : []),
                     'createdAt',
                     'updatedAt',
@@ -135,6 +136,7 @@ exports.send = async (req, res, next) => {
         if (processedUpdate.length > 0) {
             console.log('Encolando productos para actualizar...');
             console.log('Productos a encolar:', processedUpdate);
+            //console.log('Variantes a encolar:', processedUpdate.variants);
             await recursiveEnqueueUpdate(processedUpdate, shopify_domain, token_shopify, 0);
             if (!fromCron) {
                 await syncFunctions.logSync(user_id, 'Manual');

@@ -88,6 +88,10 @@ exports.syncParametersUpdate = async (req, res, next) => {
       security_inventory,
       product_type,
       price,
+      compare_at_price,
+      tags,
+      vendor,
+      description,
       price_list_serpi,
       branch_serpi,
     } = req.body;
@@ -106,6 +110,10 @@ exports.syncParametersUpdate = async (req, res, next) => {
         security_inventory,
         product_type,
         price,
+        compare_at_price,
+        tags,
+        vendor,
+        description,
         price_list_serpi,
         branch_serpi,
       }
@@ -117,6 +125,10 @@ exports.syncParametersUpdate = async (req, res, next) => {
       parameter.security_inventory = security_inventory;
       parameter.product_type = product_type,
         parameter.price = price,
+        parameter.compare_at_price = compare_at_price,
+        parameter.tags = tags,
+        parameter.vendor = vendor,
+        parameter.description = description,
         parameter.price_list_serpi = price_list_serpi,
         parameter.branch_serpi = branch_serpi
       await parameter.save();

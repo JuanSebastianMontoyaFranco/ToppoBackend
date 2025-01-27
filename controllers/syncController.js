@@ -159,4 +159,54 @@ exports.send = async (req, res, next) => {
         console.log('Error durante la ejecución desde cron:', error.message || error);
     }
 };
+exports.list = async (req, res) => {
+    const { user_id } = req.params; // user_id obtenido de los parámetros de la solicitud
 
+    try {
+        // Consultar los registros de change_log asociados al user_id
+        const changeLogs = await db.change_log.findAll({
+            include: [
+                {
+                    model: db.product,
+                    required: true, // Asegura que solo se incluyan registros con coincidencia en product
+                    where: { user_id },
+                    include: [
+                        {
+                            model: db.variant, // Incluye las variantes asociadas al producto
+                            required: true,
+                            where: { user_id },
+                        },
+                    ],
+                },
+                {
+                    model: db.price_list, // Información adicional de price_list
+                    required: false,
+                },
+                {
+                    model: db.channel, // Información adicional de channel
+                    required: false,
+                },
+            ],
+        });
+
+        // Verifica si hay resultados
+        if (changeLogs.length > 0) {
+            return res.status(200).json({
+                rows: changeLogs,
+                total: changeLogs.length,
+            });
+        } else {
+            return res.status(200).json({
+                data: [],
+                total: 0,
+                message: 'No se encontraron registros de cambios asociados al usuario.',
+            });
+        }
+    } catch (error) {
+        console.error('Error en la consulta de registros:', error);
+        return res.status(500).json({
+            error: 'Error en el servidor',
+            message: error.message,
+        });
+    }
+};

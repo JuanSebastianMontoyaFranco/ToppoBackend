@@ -2,7 +2,7 @@ const db = require('../models');
 
 exports.searchCity = async (cityName, departmentDesc, returnField) => {
     console.log('Ciudad en funcion searchCity:', cityName);
-    console.log('Departamento en funcion searchCity', departmentDesc);
+    console.log('Departamento en funcion searchCity:', departmentDesc);
 
     // Remover comas, tildes y el punto final del nombre del departamento
     let cleanDepartmentDesc = departmentDesc
@@ -71,7 +71,7 @@ exports.getUserId = async (orderStatusUrl) => {
         });
 
         if (store) {
-            console.log('Dominio encontrado:', store);
+            console.log('Dominio encontrado!',);
             return store.user_id; // Retorna el user_id asociado al dominio
         } else {
             console.log('Dominio no encontrado en la tabla store_domain');

@@ -851,23 +851,31 @@ exports.importShopify = async (req, res, next) => {
 
         console.log(shopifyApiUrl);
 
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         // Manejar la paginación para traer todos los productos
         while (shopifyApiUrl) {
-            const response = await axios.get(shopifyApiUrl, {
-                headers: {
-                    'X-Shopify-Access-Token': token_shopify
-                },
-            });
-
-            if (response.data && response.data.products) {
-                productsFromShopify.push(...response.data.products);
+            try {
+                const response = await axios.get(shopifyApiUrl, {
+                    headers: {
+                        'X-Shopify-Access-Token': token_shopify
+                    },
+                });
+        
+                if (response.data && response.data.products) {
+                    productsFromShopify.push(...response.data.products);
+                }
+        
+                const linkHeader = response.headers['link'];
+                const nextLinkMatch = linkHeader && linkHeader.match(/<([^>]+)>; rel="next"/);
+                shopifyApiUrl = nextLinkMatch ? nextLinkMatch[1] : null;
+        
+                // Respeta el límite de 2 llamadas por segundo
+                await delay(500);
+            } catch (error) {
+                console.error('Error al procesar la página:', error.message);
+                break; // O intenta reintentar según el tipo de error
             }
-
-            // Obtener la URL para la siguiente página de la cabecera "Link"
-            const linkHeader = response.headers['link'];
-            const nextLinkMatch = linkHeader && linkHeader.match(/<([^>]+)>; rel="next"/);
-            shopifyApiUrl = nextLinkMatch ? nextLinkMatch[1] : null;
         }
 
         if (!productsFromShopify || productsFromShopify.length === 0) {
@@ -1176,13 +1184,27 @@ exports.importShopify = async (req, res, next) => {
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 };
-
-
 exports.autoImport = async function () {
     console.log('Entra en la función de autoimportar');
 
     try {
+        // Obtener todos los usuarios con sync_status = 1
+        const usersToSync = await db.sync_parameter.findAll({
+            where: { sync_status: 1 },
+            attributes: ['user_id'],
+        });
+
+        // Extraer los user_id de los usuarios habilitados para sincronización
+        const userIdsToSync = usersToSync.map((user) => user.user_id);
+
+        if (userIdsToSync.length === 0) {
+            console.log('No hay usuarios habilitados para sincronización.');
+            return;
+        }
+
+        // Obtener las credenciales de los usuarios habilitados para sincronización
         const credentials = await db.credential.findAll({
+            where: { user_id: userIdsToSync },
             attributes: ['user_id', 'product_main'], // Incluir product_main en los atributos
         });
 

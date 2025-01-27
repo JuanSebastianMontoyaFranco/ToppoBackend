@@ -151,6 +151,9 @@ module.exports = {
       cupon_code: {
         type: Sequelize.STRING,
       },
+      hook: {
+        type: Sequelize.BOOLEAN,
+      },
       state: {
         type: Sequelize.INTEGER,
       },

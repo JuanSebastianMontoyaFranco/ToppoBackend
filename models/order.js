@@ -57,6 +57,7 @@ module.exports = (sequelize, DataTypes) => {
             shipping_total: DataTypes.FLOAT, // Total de la orden
             note: DataTypes.STRING, // Nota de la orden
             cupon_code: DataTypes.STRING, // Codigo de cupon
+            hook: DataTypes.BOOLEAN, // Estado para saber si la orden ya fue enviada
             state: DataTypes.INTEGER, // Estado de la orden en el sistema de facturacion
             code: DataTypes.BIGINT, // Codigo de la orden en el sistema de facturacion
             message: DataTypes.TEXT, // Mensaje de la orden en el sistema de facturacion

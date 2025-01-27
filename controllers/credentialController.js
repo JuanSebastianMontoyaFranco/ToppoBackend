@@ -1,6 +1,5 @@
 const db = require('../models');
 
-
 exports.update = async (req, res, next) => {
     const { user_id } = req.params;
 
@@ -77,25 +76,36 @@ exports.update = async (req, res, next) => {
 exports.listById = async (req, res, next) => {
     const { user_id } = req.params;
     try {
+        // Consulta para obtener las credenciales
         const credentials = await db.credential.findAll({
             where: {
                 user_id: user_id
             }
         });
 
-        if (credentials.length !== 0) {
+        // Consulta para obtener los sync_parameters
+        const syncParameters = await db.sync_parameter.findAll({
+            where: {
+                user_id: user_id
+            }
+        });
+
+        // Construir la respuesta
+        if (credentials.length !== 0 || syncParameters.length !== 0) {
             res.status(200).json({
-                rows: credentials
+                credentials,
+                sync_parameters: syncParameters,
             });
         } else {
             res.status(200).send({
-                rows: [],
+                credentials: [],
+                sync_parameters: [],
                 total: 0,
-                message: 'Aun no tienes credenciales guardadas.'
+                message: 'Aún no tienes datos guardados.'
             });
         }
     } catch (error) {
-        console.error('Error en la consulta de las credenciales:', error);
+        console.error('Error al consultar los datos:', error);
         return res.status(200).json({
             error: '¡Error en el servidor!',
             message: error.message

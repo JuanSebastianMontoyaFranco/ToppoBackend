@@ -1,7 +1,7 @@
 const db = require('../models');
 const { Op } = require('sequelize');
 const ordersFunctions = require('../functions/order');
-const functions = require('../functions/global');
+const globalFunctions = require('../functions/global');
 
 exports.create = async (req, res, next) => {
     let giftCardAmount = 0;
@@ -50,7 +50,7 @@ exports.create = async (req, res, next) => {
             customer_ip_address: req.body.browser_ip,
             customer_user: req.body.customer.id,
 
-            billing_id: functions.removeSpecialCharacters(req.body.billing_address.company),
+            billing_id: globalFunctions.removeSpecialCharacters(req.body.billing_address.company),
             billing_first_name: req.body.billing_address.first_name,
             billing_last_name: req.body.billing_address.last_name,
             billing_email: req.body.email,
@@ -60,10 +60,10 @@ exports.create = async (req, res, next) => {
             billing_city_id: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_id'),
             billing_city: req.body.billing_address.city,
             billing_format_city: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_desc'),
-            billing_state: functions.removeSpecialCharacters(req.body.billing_address.province.toUpperCase()),
+            billing_state: globalFunctions.removeSpecialCharacters(req.body.billing_address.province.toUpperCase()),
             billing_country: req.body.billing_address.country.toUpperCase(),
 
-            shipping_id: isSameAddress ? '' : functions.removeSpecialCharacters(req.body.shipping_address.company),
+            shipping_id: isSameAddress ? '' : globalFunctions.removeSpecialCharacters(req.body.shipping_address.company),
             shipping_first_name: isSameAddress ? '' : req.body.shipping_address.first_name,
             shipping_last_name: isSameAddress ? '' : req.body.shipping_address.last_name,
             shipping_email: isSameAddress ? '' : req.body.email,
@@ -73,7 +73,7 @@ exports.create = async (req, res, next) => {
             shipping_city_id: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_id'),
             shipping_city: isSameAddress ? '' : req.body.shipping_address.city,
             shipping_format_city: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_desc'),
-            shipping_state: isSameAddress ? '' : functions.removeSpecialCharacters(req.body.shipping_address.province.toUpperCase()),
+            shipping_state: isSameAddress ? '' : globalFunctions.removeSpecialCharacters(req.body.shipping_address.province.toUpperCase()),
             shipping_country: isSameAddress ? '' : req.body.shipping_address.country.toUpperCase(),
 
             order_total: req.body.total_price,
@@ -81,6 +81,7 @@ exports.create = async (req, res, next) => {
 
             cupon_code: cuponCode,
 
+            hook: false,
             state: 0,
             code: 9999,
             message: 'Sin Procesar',
@@ -237,7 +238,7 @@ exports.list = async (req, res, next) => {
 exports.detail = async (req, res, next) => {
     const order_id = req.query.order_id;
     console.log(order_id);
-    
+
     try {
         const order = await db.order.findAndCountAll({
             where: { order_id: order_id },
@@ -264,6 +265,174 @@ exports.detail = async (req, res, next) => {
         next(error);
     }
 }
+
+
+exports.update = async (req, res, next) => {
+    try {
+
+        const isSameAddress = req.body.billing_address?.address1 === req.body.shipping_address?.address1;
+
+        const payment_method = req.body.payment_gateway_names.length > 1
+            ? req.body.payment_gateway_names[req.body.payment_gateway_names.length - 1]
+            : req.body.payment_gateway_names[0];
+
+        const existingOrder = await db.order.findOne({
+            where: { order_id: req.body.id },
+        });
+
+        const transactionId = await ordersFunctions.getTransactionId(req.body.id, req.body.confirmation_number);
+
+        if (!existingOrder) {
+            return res.status(404).send({
+                error: 'La orden no existe en la base de datos.',
+            });
+        }
+
+        await existingOrder.update({
+            date_create: req.body.created_at,
+            date_update: req.body.updated_at,
+            status: req.body.financial_status,
+            payment: payment_method,
+            transaction_id: transactionId,
+
+            billing_id: isSameAddress ? globalFunctions.removeSpecialCharacters(req.body.shipping_address.company || '') : globalFunctions.removeSpecialCharacters(req.body.billing_address.company),
+            billing_first_name: isSameAddress ? req.body.shipping_address.first_name : req.body.billing_address.first_name,
+            billing_last_name: isSameAddress ? req.body.shipping_address.last_name : req.body.billing_address.last_name,
+            billing_email: req.body.email,
+            billing_phone: isSameAddress ? req.body.shipping_address.phone : req.body.billing_address.phone,
+            billing_address_1: isSameAddress ? req.body.shipping_address.address1 : req.body.billing_address.address1,
+            billing_address_2: isSameAddress ? req.body.shipping_address.address2 : req.body.billing_address.address2,
+
+            billing_city_id: isSameAddress ?
+                await await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_id')
+                : await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_id'),
+            billing_city: isSameAddress ? req.body.shipping_address.city : req.body.billing_address.city,
+            billing_format_city: isSameAddress ?
+                await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_desc_2')
+                : await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_desc_2'),
+            billing_state: isSameAddress ? req.body.shipping_address.province.toUpperCase() : req.body.billing_address.province.toUpperCase(),
+            billing_country: isSameAddress ? req.body.shipping_address.country.toUpperCase() : req.body.billing_address.country.toUpperCase(),
+
+            shipping_id: isSameAddress ? '' : globalFunctions.removeSpecialCharacters(req.body.shipping_address.company),
+            shipping_first_name: isSameAddress ? '' : req.body.shipping_address.first_name,
+            shipping_last_name: isSameAddress ? '' : req.body.shipping_address.last_name,
+            shipping_email: isSameAddress ? '' : req.body.email,
+            shipping_phone: isSameAddress ? '' : req.body.shipping_address.phone,
+            shipping_address_1: isSameAddress ? '' : req.body.shipping_address.address1,
+            shipping_address_2: isSameAddress ? '' : req.body.shipping_address.address2,
+            shipping_city_id: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_id'),
+            shipping_city: isSameAddress ? '' : req.body.shipping_address.city,
+            shipping_format_city: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_desc_2'),
+            shipping_state: isSameAddress ? '' : req.body.shipping_address.province.toUpperCase(),
+            shipping_country: isSameAddress ? '' : req.body.shipping_address.country.toUpperCase(),
+
+        });
+        await existingOrder.save();
+
+        console.log('Órden actualizada con éxito');
+        return res.status(200).json({
+            message: 'Órden actualizada con éxito'
+        })
+    } catch (error) {
+        console.error('Error en la función updateOrder:', error);
+        return res.status(500).json({
+            error: 'Error actualizando la orden',
+            message: error.message
+        });
+    }
+}
+
+
+exports.updateState = async (req, res, next) => {
+    try {
+        const existingOrder = await db.order.findOne({
+            where: { order_id: req.body.order_ref },
+        });
+
+        if (!existingOrder) {
+            return { status: 404, message: 'La orden no existe en la base de datos.' };
+        }
+
+        await existingOrder.update({
+            code: req.body.response_code,
+            message: req.body.response_message,
+            state: req.body.state,
+            invoice_id: req.body.order_id
+        });
+        await existingOrder.save();
+        console.log('Órden actualizada con éxito');
+        return res.status(200).json({
+            message: 'Órden actualizada con éxito'
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message: 'Error al actualizar la órden:',
+            error: error
+        });
+    }
+};
+
+
+exports.modify = async (req, res, next) => {
+    const { order_id } = req.params;
+    const { billing_id, billing_state,
+        billing_format_city, shipping_id,
+        shipping_state, shipping_format_city,
+        state, code, message
+    } = req.body;
+
+    try {
+        // Encuentra la orden por order_id
+        const order = await db.order.findOne({
+            where: { order_id: order_id }
+        });
+
+        // Si no se encuentra la orden, responde con error
+        if (!order) {
+            return res.status(404).send({
+                error: 'Orden no encontrada.'
+            });
+        }
+
+        // Construir dinámicamente el objeto de actualización
+        const fieldsToUpdate = {};
+
+        if (billing_id) fieldsToUpdate.billing_id = billing_id;
+        if (billing_state) fieldsToUpdate.billing_state = billing_state;
+        if (billing_format_city) {
+            fieldsToUpdate.billing_format_city = billing_format_city;
+            fieldsToUpdate.billing_city_id = await ordersFunctions.searchCity(billing_format_city, 'city_id');
+        }
+        if (shipping_id) fieldsToUpdate.shipping_id = shipping_id;
+        if (shipping_state) fieldsToUpdate.shipping_state = shipping_state;
+        if (shipping_format_city) {
+            fieldsToUpdate.shipping_format_city = shipping_format_city;
+            fieldsToUpdate.shipping_city_id = await ordersFunctions.searchCity(shipping_format_city, 'city_id');
+        }
+
+        if (state !== undefined) fieldsToUpdate.state = state;
+        if (code !== undefined) fieldsToUpdate.code = code;
+        if (message !== undefined) fieldsToUpdate.message = message;
+
+        // Actualiza los campos dinámicos
+        if (Object.keys(fieldsToUpdate).length > 0) {
+            await order.update(fieldsToUpdate);
+        }
+
+        // Responde con el objeto actualizado
+        res.status(200).json({
+            message: 'Orden actualizada correctamente.',
+            updatedFields: fieldsToUpdate, // Devuelve los campos actualizados
+        });
+    } catch (error) {
+        console.error('Error en la actualización:', error);
+        res.status(500).send({
+            error: '¡Error en el servidor!'
+        });
+        next(error);
+    }
+};
+
 
 exports.listHistoweb = async (req, res, next) => {
     const { user_id } = req.params;
@@ -293,8 +462,8 @@ exports.listHistoweb = async (req, res, next) => {
                 const orderData = {
                     order_ref: order.order_id.toString(),
                     id_shopify: order.ecommerce_name,
-                    order_date: functions.formatDate2(order.date_create),
-                    paid_date: functions.formatDate2(order.date_update),
+                    order_date: globalFunctions.formatDate2(order.date_create),
+                    paid_date: globalFunctions.formatDate2(order.date_update),
                     order_status: order.status === "paid" ? "wwc_processing" : order.status,
                     payment_method: order.payment === "Wompi"
                         ? "wompi_wwp"
@@ -363,5 +532,128 @@ exports.listHistoweb = async (req, res, next) => {
             error: '¡Error en el servidor!',
             message: error.message
         });
+    }
+};
+
+
+exports.listSerpi = async (req, res, next) => {
+    const { user_id } = req.params;
+    try {
+        // Obtiene las órdenes junto con sus detalles (order_items)
+        const orders = await db.order.findAll({
+            where: {
+                user_id: user_id
+            },
+            include: [{
+                model: db.order_item, // Relación con la tabla order_items
+            }]
+        });
+
+        if (orders.length !== 0) {
+            const formattedOrders = orders.map(order => {
+                // Construye la estructura formasPago
+                const formasPago = [
+                    {
+                        idFormaPago: order.payment === "Wompi" ? 11 : 7,
+                        valorPago: parseFloat(order.order_total),
+                        fechaPago: globalFunctions.formatDate(order.date_create),
+                        codigoAutorizacion: order.transaction_id,
+                        codigoTransaccion: order.order_id.toString(),
+                    }
+                ];
+
+                // Inicializa el array de detalles
+                let detalles = order.order_items.map(item => ({
+                    idArticulo: parseFloat(item.sku),
+                    cantidad: item.qty,
+                    valorUnitario: parseFloat(item.unitary_price_1),
+                    porcdescuento: parseFloat(item.discounted_percentage),
+                    descuentovalor: item.discounted_value_1,
+                    porcImpuesto: item.tax_percentage,
+                    subtotal: item.line_total_1.toString(),
+                    impuesto: parseFloat(item.tax)
+                }));
+
+                // Agrega el detalle del envío si shipping_total es mayor que 0
+                if (parseFloat(order.shipping_total) > 0) {
+                    detalles.push({
+                        idArticulo: 1,
+                        cantidad: 1,
+                        valorUnitario: parseFloat(order.shipping_total),
+                        porcdescuento: 0,
+                        descuentovalor: 0,
+                        porcImpuesto: 0,
+                        subtotal: Math.round(order.shipping_total).toString(),
+                        impuesto: 0
+                    });
+                }
+
+                // Retorna la orden con la estructura personalizada
+                return {
+                    prefijo: 'PDV',
+                    numeroDoc: order.doc_number,
+                    fechaDocumento: globalFunctions.formatDate(order.date_create),
+                    nitTerceroEnc: order.billing_id,
+                    nitVendedor: '999999999',
+                    idSucursal: null,
+                    idBodega: 1,
+                    idListaPrecio: 1,
+                    numOrdenCompra: order.doc_number.toString(),
+                    comentario: null,
+                    celular: order.billing_phone,
+                    metodopago: order.payment,
+                    estadopago: order.status === 'paid' ? 'Pagado' : order.payment,
+                    detalles,
+                    formasPago,
+                };
+            });
+
+            res.status(200).json({
+                orders: formattedOrders,
+            });
+        } else {
+            res.status(200).send({
+                orders: [],
+                total: 0,
+                message: 'Aún no tienes órdenes guardadas.'
+            });
+        }
+
+    } catch (error) {
+        console.error('Error en la consulta de órdenes:', error);
+        return res.status(500).json({
+            error: '¡Error en el servidor!',
+            message: error.message
+        });
+    }
+};
+
+
+
+exports.sendHookHistoweb = async (req, res) => {
+    const { user_id } = req.params;
+
+    try {
+        const credentials = await db.credential.findOne({
+            where: { user_id: user_id },
+        });
+
+        if (!credentials || !credentials.hook_histoweb) {
+            return res.status(500).json({ error: 'No se encontraron credenciales o URL para el usuario' });
+        }
+
+        const response = await fetch(credentials.hook_histoweb, {
+            method: 'POST',
+            timeout: 300000,
+        });
+
+        if (!response.ok) {
+            return res.status(response.status).json({ error: `Error en la solicitud: ${response.statusText}` });
+        }
+
+        res.status(200).json({ message: 'La solicitud se completó correctamente.' });
+    } catch (error) {
+        console.error('Error durante la solicitud POST:', error);
+        res.status(500).json({ error: 'Hubo un error al procesar la solicitud.' });
     }
 };

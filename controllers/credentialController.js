@@ -93,15 +93,19 @@ exports.listById = async (req, res, next) => {
         // Construir la respuesta
         if (credentials.length !== 0 || syncParameters.length !== 0) {
             res.status(200).json({
-                credentials,
-                sync_parameters: syncParameters,
+                rows: [{
+                    credentials,
+                    sync_parameters: syncParameters,
+                }],
             });
         } else {
             res.status(200).send({
-                credentials: [],
-                sync_parameters: [],
-                total: 0,
-                message: 'Aún no tienes datos guardados.'
+                rows: [{
+                    credentials: [],
+                    sync_parameters: [],
+                    total: 0,
+                    message: 'Aún no tienes datos guardados.'
+                }]
             });
         }
     } catch (error) {

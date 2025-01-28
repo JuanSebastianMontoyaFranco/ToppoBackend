@@ -128,3 +128,59 @@ exports.list = async (req, res, next) => {
     });
   }
 }
+
+exports.updateCitiesWithHW2 = async (req, res, next) => {
+  const url2 = process.env.URL_CITY_HW_2;
+  console.log(encryptedText);
+
+  const headers = {
+    ApiSignature: encryptedText,
+  };
+
+  try {
+    const response = await axios.get(url2, { headers });
+    const responseBody = response.data.response_body;
+
+    for (const country of responseBody) {
+      for (const department of country.departamentos) {
+        for (const city of department.ciudades) {
+          const city_id = city.id.toString().padStart(5, '0'); // Normaliza a 5 caracteres
+          const city_desc_2 = city.name;
+
+          try {
+            const existingCity = await db.city.findOne({
+              where: { city_id },
+            });
+
+            if (existingCity) {
+              // Actualizar el campo city_desc_2 si existe el registro
+              await db.city.update(
+                { city_desc_2 },
+                { where: { city_id } }
+              );
+              console.log('Campo city_desc_2 actualizado:', city_desc_2);
+            } else {
+              console.log(
+                `Ciudad con ID ${city_id} no encontrada en la base de datos.`
+              );
+            }
+          } catch (error) {
+            console.error(
+              'Error al actualizar city_desc_2 en la base de datos:',
+              error
+            );
+            throw error;
+          }
+        }
+      }
+    }
+
+    res.status(200).json({ message: 'Actualización completada con éxito' });
+  } catch (error) {
+    console.error('Error al procesar los datos de la API HW_2:', error);
+    res.status(500).send({
+      error: '¡Error en el servidor!',
+    });
+    next(error);
+  }
+};

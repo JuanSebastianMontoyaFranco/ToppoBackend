@@ -8,23 +8,52 @@ module.exports = (db) => {
         try {
             const url = 'https://apis.serpi.com.co/api/v1/Tercero';
             const response = await axios.post(url, clientData, { headers });
-            console.log('Cliente creado exitosamente:', response.data);
-
-            return { success: true, data: response.data, message: response.data.message };
-        } catch (error) {
-            console.error('Error al crear el cliente:', error.response?.data || error.message);
-
-            if (error.response && error.response.data && error.response.data.errors) {
-                const formattedErrors = Object.entries(error.response.data.errors)
-                    .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
-                    .join('; ');
-
-                throw new Error(`Errores al crear cliente: ${formattedErrors}`);
+            const responseData = response.data;
+    
+            console.log('Respuesta del cliente:', responseData);
+    
+            // Verificar si hay errores en el campo `errors`
+            if (responseData.errors && responseData.errors.length > 0) {
+                const formattedErrors = responseData.errors.join('; ');
+                return {
+                    success: false,
+                    errors: responseData.errors,
+                    message: `Errores al crear cliente: ${formattedErrors}`,
+                };
             }
-
-            throw new Error('No se pudo crear el cliente. Respuesta inesperada.');
+    
+            // Verificar si el campo `success` es `true` y no hay errores
+            if (responseData.success && (!responseData.errors || responseData.errors.length === 0)) {
+                return {
+                    success: true,
+                    data: responseData,
+                    message: responseData.message || 'Cliente creado exitosamente.',
+                };
+            }
+    
+            // Si no es un caso manejado explícito, devolver un mensaje genérico
+            return {
+                success: false,
+                message: responseData.message || 'No se pudo crear el cliente. Respuesta inesperada.',
+            };
+        } catch (error) {
+            console.error('Error al crear el cliente:', error.message);
+    
+            // Manejo de errores externos (errores de red, etc.)
+            if (axios.isAxiosError(error) && error.response?.data) {
+                return {
+                    success: false,
+                    message: error.response.data.message || 'Error desconocido en la API.',
+                    errors: error.response.data.errors || [],
+                };
+            }
+    
+            return {
+                success: false,
+                message: error.message || 'Error desconocido.',
+            };
         }
-    };
+    };    
 
     order.afterUpdate(async (orderInstance, options) => {
         console.log(`Hook de Order ejecutado para la orden: ${orderInstance.order_id}`);
@@ -168,7 +197,7 @@ module.exports = (db) => {
                 const message = clientError
                     ? `Cliente: ${clientError}. Orden enviada correctamente`
                     : clientSuccessMessage
-                        ? `Cliente creado: ${clientSuccessMessage}. Orden enviada correctamente`
+                        ? `Cliente: ${clientSuccessMessage}. Orden enviada correctamente`
                         : 'Orden enviada correctamente';
 
                 const detalles = items.map(item => ({
@@ -253,8 +282,8 @@ module.exports = (db) => {
                     : `Error cliente: ${clientError}. Orden enviada correctamente.`
                 : clientSuccessMessage
                     ? orderError
-                        ? `Cliente creado: ${clientSuccessMessage}. Error orden: ${orderError}`
-                        : `Cliente creado: ${clientSuccessMessage}. Orden enviada correctamente.`
+                        ? `Cliente: ${clientSuccessMessage}. Error orden: ${orderError}`
+                        : `Cliente: ${clientSuccessMessage}. Orden enviada correctamente.`
                     : orderError
                         ? `Error orden: ${orderError}`
                         : 'Orden enviada correctamente';
@@ -410,7 +439,7 @@ module.exports = (db) => {
                     const clientResult = await createClient([clientData], headers);
                     clientSuccessMessage = clientResult.message;
                 } catch (error) {
-                    clientError = error.message;
+                    clientError = error.message || "Error desconocido al crear cliente.";
                     console.error(`Error al crear el cliente para la orden ${orderInstance.order_id}:`, clientError);
                 }
 
@@ -439,7 +468,7 @@ module.exports = (db) => {
 
                 const formasPago = [
                     {
-                        idFormaPago: 7,
+                        idFormaPago: orderInstance.payment === "Wompi" ? 11 : 7,
                         valorPago: parseFloat(orderInstance.order_total),
                         fechaPago: globalFunctions.formatDate(orderInstance.date_create),
                         codigoAutorizacion: orderInstance.transaction_id,
@@ -503,8 +532,8 @@ module.exports = (db) => {
                     : `Error cliente: ${clientError}. Orden enviada correctamente.`
                 : clientSuccessMessage
                     ? orderError
-                        ? `Cliente creado: ${clientSuccessMessage}. Error orden: ${orderError}`
-                        : `Cliente creado: ${clientSuccessMessage}. Orden enviada correctamente.`
+                        ? `Cliente: ${clientSuccessMessage}. Error orden: ${orderError}`
+                        : `Cliente: ${clientSuccessMessage}. Orden enviada correctamente.`
                     : orderError
                         ? `Error orden: ${orderError}`
                         : 'Orden enviada correctamente';

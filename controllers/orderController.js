@@ -21,7 +21,16 @@ exports.create = async (req, res, next) => {
         const payment_method = req.body.payment_gateway_names.length > 1
             ? req.body.payment_gateway_names[req.body.payment_gateway_names.length - 1]
             : req.body.payment_gateway_names[0];
-        const isSameAddress = req.body.billing_address?.address1 === req.body.shipping_address?.address1;
+
+        const isSameAddress = req.body.billing_address?.address1 &&
+            req.body.shipping_address?.address1 &&
+            req.body.billing_address.address1 === req.body.shipping_address.address1;
+
+        if (isSameAddress) {
+            console.log("Las direcciones son iguales.");
+        } else {
+            console.log("Las direcciones no son iguales.");
+        }
 
         if (req.body.payment_gateway_names[0] === "gift_card") {
             const giftCardData = await ordersFunctions.getGiftCardValues(order.id);
@@ -59,7 +68,7 @@ exports.create = async (req, res, next) => {
             billing_address_2: req.body.billing_address.address2,
             billing_city_id: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_id'),
             billing_city: req.body.billing_address.city,
-            billing_format_city: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_desc'),
+            billing_format_city: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_desc_2'),
             billing_state: globalFunctions.removeSpecialCharacters(req.body.billing_address.province.toUpperCase()),
             billing_country: req.body.billing_address.country.toUpperCase(),
 
@@ -72,7 +81,7 @@ exports.create = async (req, res, next) => {
             shipping_address_2: isSameAddress ? '' : req.body.shipping_address.address2,
             shipping_city_id: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_id'),
             shipping_city: isSameAddress ? '' : req.body.shipping_address.city,
-            shipping_format_city: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_desc'),
+            shipping_format_city: isSameAddress ? '' : await ordersFunctions.searchCity(req.body.shipping_address.city.toUpperCase(), req.body.shipping_address.province.toUpperCase(), 'city_desc_2'),
             shipping_state: isSameAddress ? '' : globalFunctions.removeSpecialCharacters(req.body.shipping_address.province.toUpperCase()),
             shipping_country: isSameAddress ? '' : req.body.shipping_address.country.toUpperCase(),
 
@@ -121,7 +130,8 @@ exports.create = async (req, res, next) => {
             const subtotal_1 = grossValue - discountValue;
             const subtotal_2 = ((parseFloat(lineItem.price) * parseFloat(lineItem.quantity)));
             const tax = (grossValue * (1 - discount)) * 0.19;
-
+            
+            
             await db.order_item.create({
                 order_id: req.body.id,
                 doc_number: req.body.order_number,

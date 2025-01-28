@@ -28,6 +28,10 @@ module.exports = {
         allowNull: false,
         type: Sequelize.STRING,
       },
+      city_desc_2: {
+        allowNull: false,
+        type: Sequelize.STRING,
+      },
       city: {
         allowNull: false,
         type: Sequelize.STRING

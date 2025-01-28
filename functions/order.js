@@ -46,6 +46,8 @@ exports.searchCity = async (cityName, departmentDesc, returnField) => {
 
 
 const extractDomain = (url) => {
+    console.log('URL que recbe en la funcion:', url);
+    
     try {
         // Usar URL constructor para extraer el dominio
         const { hostname } = new URL(url);

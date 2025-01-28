@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
     city_id: DataTypes.STRING,
     department_desc: DataTypes.STRING,
     city_desc: DataTypes.STRING,
+    city_desc_2: DataTypes.STRING,
     city: DataTypes.STRING,
   }, {
     sequelize,

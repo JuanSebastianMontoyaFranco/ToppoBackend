@@ -18,13 +18,18 @@ exports.create = async (req, res, next) => {
     try {
         const userId = await ordersFunctions.getUserId(req.body.order_status_url);
         const transactionId = await ordersFunctions.getTransactionId(req.body.id, req.body.confirmation_number);
+        const shipping_total = req.body.shipping_lines?.length
+            ? req.body.shipping_lines[0].price
+            : 0;
+
         const payment_method = req.body.payment_gateway_names.length > 1
             ? req.body.payment_gateway_names[req.body.payment_gateway_names.length - 1]
             : req.body.payment_gateway_names[0];
 
         const isSameAddress = req.body.billing_address?.address1 &&
-            req.body.shipping_address?.address1 &&
-            req.body.billing_address.address1 === req.body.shipping_address.address1;
+            (req.body.shipping_address?.address1
+                ? req.body.billing_address.address1 === req.body.shipping_address.address1
+                : true);
 
         if (isSameAddress) {
             console.log("Las direcciones son iguales.");
@@ -86,7 +91,7 @@ exports.create = async (req, res, next) => {
             shipping_country: isSameAddress ? '' : req.body.shipping_address.country.toUpperCase(),
 
             order_total: req.body.total_price,
-            shipping_total: req.body.shipping_lines[0].price,
+            shipping_total: shipping_total,
 
             cupon_code: cuponCode,
 
@@ -130,8 +135,8 @@ exports.create = async (req, res, next) => {
             const subtotal_1 = grossValue - discountValue;
             const subtotal_2 = ((parseFloat(lineItem.price) * parseFloat(lineItem.quantity)));
             const tax = (grossValue * (1 - discount)) * 0.19;
-            
-            
+
+
             await db.order_item.create({
                 order_id: req.body.id,
                 doc_number: req.body.order_number,

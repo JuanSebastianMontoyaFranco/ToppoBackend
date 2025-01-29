@@ -47,7 +47,7 @@ exports.update = async (req, res, next) => {
         if (!created) {
             // Si el registro ya existía, actualizarlo
             credential.product_main = product_main,
-            credential.order_main = order_main,
+                credential.order_main = order_main,
                 credential.store_domain = store_domain,
                 credential.shopify_domain = shopify_domain;
             credential.token_shopify = token_shopify;
@@ -90,12 +90,19 @@ exports.listById = async (req, res, next) => {
             }
         });
 
+        const orderParameters = await db.order_parameter.findAll({
+            where: {
+                user_id: user_id
+            }
+        });
+
         // Construir la respuesta
-        if (credentials.length !== 0 || syncParameters.length !== 0) {
+        if (credentials.length !== 0) {
             res.status(200).json({
                 rows: [{
                     credentials,
                     sync_parameters: syncParameters,
+                    order_parameters: orderParameters
                 }],
             });
         } else {

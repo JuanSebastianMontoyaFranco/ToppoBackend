@@ -1,6 +1,7 @@
 const db = require('../models');
 const axios = require('axios');
 
+// Orders Parameters
 exports.orderParametersUpdate = async (req, res, next) => {
   const { user_id } = req.params;
   try {
@@ -80,6 +81,7 @@ exports.orderParameterlistById = async (req, res, next) => {
 };
 
 
+// Sync Parameters
 exports.syncParametersUpdate = async (req, res, next) => {
   const { user_id } = req.params;
   try {
@@ -152,6 +154,88 @@ exports.SyncParameterlistById = async (req, res, next) => {
   const { user_id } = req.params;
   try {
     const parameters = await db.sync_parameter.findAll({
+      where: {
+        user_id: user_id
+      }
+    });
+    if (parameters.length !== 0) {
+      res.status(200).json({
+        rows: parameters
+      });
+    } else {
+      res.status(200).send({
+        rows: [],
+        total: 0,
+        message: 'Aun no tienes parametros guardados.'
+      });
+    }
+  } catch (error) {
+    console.error('Error en la consulta de los parametros:', error);
+    return res.status(200).json({
+      error: '¡Error en el servidor!',
+      message: error.message
+    });
+  }
+};
+
+
+exports.clientParametersUpdate = async (req, res, next) => {
+  const { user_id } = req.params;
+  try {
+    const {
+      check_client,
+      client_nit,
+      seller_nit,
+      prefix,
+      payment_method
+    } = req.body;
+
+    if (!user_id) {
+      return res.status(200).send({
+        error: '¡Error en el cliente!',
+        message: 'El campo user_id es obligatorio.'
+      });
+    }
+
+    const [parameter, created] = await db.client_parameter.findOrCreate({
+      where: { user_id },
+      defaults: {
+        check_client,
+        client_nit,
+        seller_nit,
+        prefix,
+        payment_method,
+      }
+    });
+
+    if (!created) {
+      // Si el registro ya existía, actualizarlo
+      parameter.check_client = check_client;
+      parameter.client_nit = client_nit;
+      parameter.seller_nit = seller_nit,
+        parameter.prefix = prefix,
+        parameter.payment_method = payment_method,
+        await parameter.save();
+    }
+
+    console.log('Creación/actualización con éxito.');
+    return res.status(200).send({
+      message: 'Creación/actualización con éxito.'
+    });
+  } catch (error) {
+    console.error('Error al crear o actualizar los parametros de los clientes:', error);
+    return res.status(500).send({
+      message: '¡Error en el servidor!',
+      error: error.message
+    });
+  }
+}
+
+
+exports.clientParameterlistById = async (req, res, next) => {
+  const { user_id } = req.params;
+  try {
+    const parameters = await db.client_parameter.findAll({
       where: {
         user_id: user_id
       }

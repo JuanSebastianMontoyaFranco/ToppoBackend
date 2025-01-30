@@ -67,25 +67,27 @@ module.exports = (db) => {
 
             try {
 
-                const credentials = await credential.findOne({
+                const clientParam = await db.client_parameter.findOne({
+                    where: { user_id: orderInstance.user_id }
+                });
+
+                const skipClientData = clientParam && clientParam.check_client;
+
+                const orderClientNit = clientParam ? clientParam.client_nit : orderInstance.billing_id;
+                const orderSellerNit = clientParam ? clientParam.seller_nit : '999999999';
+                const orderPrefix = clientParam ? clientParam.prefix : 'PDV';
+                const paymentMethodId = clientParam ? clientParam.payment_method : (orderInstance.payment === "Wompi" ? 11 : 7);
+
+                const parameters = await db.order_parameter.findOne({
                     where: { user_id: orderInstance.user_id },
                 });
 
-                if (!credentials) {
-                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
-                    return;
-                }
-
-                const { token_serpi, secret_key_serpi } = credentials;
-
-                if (!token_serpi || !secret_key_serpi) {
-                    console.error(`Credenciales incompletas para el usuario: ${orderInstance.user_id}`);
-                    return;
-                }
-
-                const parameters = await order_parameter.findOne({
+                const syncParameters = await db.sync_parameter.findOne({
                     where: { user_id: orderInstance.user_id },
                 });
+
+                const price_list_serpi = syncParameters ? syncParameters.price_list_serpi : 1
+
 
                 if (!parameters || parameters.main !== 1) {
                     if (parameters && parameters.main === 2) {
@@ -126,73 +128,94 @@ module.exports = (db) => {
                     return;
                 }
 
+                const credentials = await credential.findOne({
+                    where: { user_id: orderInstance.user_id },
+                });
+
+                if (!credentials) {
+                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
+                    return;
+                }
+
+                const { token_serpi, secret_key_serpi } = credentials;
+
+                if (!token_serpi || !secret_key_serpi) {
+                    console.error(`Credenciales incompletas para el usuario: ${orderInstance.user_id}`);
+                    return;
+                }
+
                 const headers = {
                     Authorization: `Bearer ${token_serpi}`,
                     secretkey: secret_key_serpi,
                 };
 
-                const clientData = {
-                    tipoidentidad: 'CC',
-                    identificacion: orderInstance.billing_id,
-                    dv: 0,
-                    tipopersona: 2,
-                    primernombre: orderInstance.billing_first_name,
-                    segundonombre: null,
-                    primerapellido: orderInstance.billing_last_name,
-                    segundoapellido: null,
-                    nombrecompleto: orderInstance.billing_first_name + orderInstance.billing_last_name,
-                    razonsocial: null,
-                    escliente: true,
-                    esproveedor: false,
-                    esempleado: false,
-                    esvendedor: false,
-                    esotro: false,
-                    escobrador: false,
-                    cumple_dia: null,
-                    cumplea_mes: null,
-                    cumplea_ano: null,
-                    genero: null,
-                    direccion: orderInstance.billing_address_1,
-                    direccion2: orderInstance.billing_address_2,
-                    telefono: null,
-                    ext: null,
-                    movil: orderInstance.billing_phone,
-                    pais: orderInstance.billing_country,
-                    departamento: orderInstance.billing_state,
-                    ciudad: orderInstance.billing_city,
-                    codciudad: orderInstance.billing_city_id,
-                    zona: null,
-                    email: orderInstance.billing_email,
-                    activo: true,
-                    cupocredito: "0",
-                    periodopago: 0,
-                    codigociiu: null,
-                    descuentoventa: null,
-                    categoriatercero: 1,
-                    formapago: 11,
-                    listaprecios: 1,
-                    grupoventas: 1,
-                    grupocompras: 10,
-                    vendedor: '999999999',
-                    cobrador: null,
-                    fechacreacion: globalFunctions.formatDate(orderInstance.date_create),
-                    regimen: 1,
-                    banco: null,
-                    tipo_cuenta: null,
-                    cuenta_bancaria: null,
-                    limite_credito: null,
-                    camposPersonalizados: {},
-                    responsable: null,
-                };
+                if (!skipClientData) {
+                    console.log('Se mandan los datos del cliente');
+                    const clientData = {
+                        tipoidentidad: 'CC',
+                        identificacion: orderInstance.billing_id,
+                        dv: 0,
+                        tipopersona: 2,
+                        primernombre: orderInstance.billing_first_name,
+                        segundonombre: null,
+                        primerapellido: orderInstance.billing_last_name,
+                        segundoapellido: null,
+                        nombrecompleto: orderInstance.billing_first_name + orderInstance.billing_last_name,
+                        razonsocial: null,
+                        escliente: true,
+                        esproveedor: false,
+                        esempleado: false,
+                        esvendedor: false,
+                        esotro: false,
+                        escobrador: false,
+                        cumple_dia: null,
+                        cumplea_mes: null,
+                        cumplea_ano: null,
+                        genero: null,
+                        direccion: orderInstance.billing_address_1,
+                        direccion2: orderInstance.billing_address_2,
+                        telefono: null,
+                        ext: null,
+                        movil: orderInstance.billing_phone,
+                        pais: orderInstance.billing_country,
+                        departamento: orderInstance.billing_state,
+                        ciudad: orderInstance.billing_city,
+                        codciudad: orderInstance.billing_city_id,
+                        zona: null,
+                        email: orderInstance.billing_email,
+                        activo: true,
+                        cupocredito: "0",
+                        periodopago: 0,
+                        codigociiu: null,
+                        descuentoventa: null,
+                        categoriatercero: 1,
+                        formapago: 11,
+                        listaprecios: 1,
+                        grupoventas: 1,
+                        grupocompras: 10,
+                        vendedor: '999999999',
+                        cobrador: null,
+                        fechacreacion: globalFunctions.formatDate(orderInstance.date_create),
+                        regimen: 1,
+                        banco: null,
+                        tipo_cuenta: null,
+                        cuenta_bancaria: null,
+                        limite_credito: null,
+                        camposPersonalizados: {},
+                        responsable: null,
+                    };
 
-                try {
-                    const clientResult = await createClient([clientData], headers);
-                    clientSuccessMessage = clientResult.message;
-                } catch (error) {
-                    clientError = error.message;
-                    console.error(`Error al crear el cliente para la orden ${orderInstance.order_id}:`, clientError);
+                    try {
+                        const clientResult = await createClient([clientData], headers);
+                        clientSuccessMessage = clientResult.message;
+                    } catch (error) {
+                        clientError = error.message;
+                        console.error(`Error al crear el cliente para la orden ${orderInstance.order_id}:`, clientError);
+                    }
+                } else {
+                    console.log('No se mandan los datos del cliente');
+
                 }
-
 
                 const message = clientError
                     ? `Cliente: ${clientError}. Orden enviada correctamente`
@@ -218,7 +241,7 @@ module.exports = (db) => {
 
                 const formasPago = [
                     {
-                        idFormaPago: orderInstance.payment === "Wompi" ? 11 : 7,
+                        idFormaPago: paymentMethodId,
                         valorPago: parseFloat(orderInstance.order_total),
                         fechaPago: globalFunctions.formatDate(orderInstance.date_create),
                         codigoAutorizacion: orderInstance.transaction_id,
@@ -240,14 +263,14 @@ module.exports = (db) => {
                 }
 
                 const transformedOrder = {
-                    prefijo: 'PDV',
+                    prefijo: orderPrefix,
                     numeroDoc: orderInstance.doc_number,
                     fechaDocumento: globalFunctions.formatDate(orderInstance.date_create),
-                    nitTerceroEnc: orderInstance.billing_id,
-                    nitVendedor: '999999999',
+                    nitTerceroEnc: orderClientNit,
+                    nitVendedor: orderSellerNit,
                     idSucursal: null,
                     idBodega: 1,
-                    idListaPrecio: 1,
+                    idListaPrecio: price_list_serpi,
                     numOrdenCompra: orderInstance.doc_number.toString(),
                     comentario: null,
                     celular: orderInstance.billing_phone,
@@ -343,8 +366,6 @@ module.exports = (db) => {
                         const credentials = await credential.findOne({
                             where: { user_id: orderInstance.user_id },
                         });
-
-                        console.log('CREDENTIALS EN HISTOWEB:', credentials);
 
                         if (!credentials) {
                             console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);

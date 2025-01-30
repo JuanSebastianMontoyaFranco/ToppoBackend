@@ -208,12 +208,14 @@ exports.list = async (req, res, next) => {
             limit: limit,
             offset: offset,
             where: whereCondition,
+            order: [['date_create', 'DESC']], // Ordenar por fecha de creación descendente
             include: [
                 {
                     model: db.order_item
                 }
             ]
         });
+        
 
         const totalOrders = await db.order.count({
             where: whereCondition,

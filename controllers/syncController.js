@@ -2,6 +2,7 @@ const db = require('../models');
 const axios = require('axios');
 const syncFunctions = require('../functions/sync');
 const { recursiveEnqueue, recursiveEnqueueUpdate } = require('../functions/aws')
+const { Op } = require("sequelize");
 
 exports.send = async (req, res, next) => {
     const user_id = req?.params?.user_id || req.body.user_id;
@@ -159,12 +160,33 @@ exports.send = async (req, res, next) => {
         console.log('Error durante la ejecución desde cron:', error.message || error);
     }
 };
-exports.list = async (req, res) => {
+
+exports.changeRecords = async (req, res) => {
     const { user_id } = req.params; // user_id obtenido de los parámetros de la solicitud
+    const { state, field, fromDate, toDate } = req.query;
 
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const offset = (page - 1) * limit;
+
+        const whereCondition = {
+            ...(state ? { state: state } : {}),
+            ...(field ? { field: field } : {}),
+            ...(fromDate
+                ? { createdAt: { [Op.gte]: new Date(`${fromDate}T00:00:00.000Z`) } } // Desde la fecha dada en adelante
+                : {}),
+            ...(toDate
+                ? { createdAt: { [Op.lte]: new Date(`${toDate}T23:59:59.999Z`) } } // Hasta la fecha dada
+                : {}),
+        };
+
         // Consultar los registros de change_log asociados al user_id
         const changeLogs = await db.change_log.findAll({
+            limit: limit,
+            offset: offset,
+            where: whereCondition,
+            order: [['createdAt', 'DESC']], // Ordenar por fecha de creación descendente
             include: [
                 {
                     model: db.product,
@@ -189,17 +211,75 @@ exports.list = async (req, res) => {
             ],
         });
 
+        const totalRecords = await db.change_log.count({
+            where: whereCondition,
+        });
+
         // Verifica si hay resultados
         if (changeLogs.length > 0) {
             return res.status(200).json({
                 rows: changeLogs,
-                total: changeLogs.length,
+                total: totalRecords,
             });
         } else {
             return res.status(200).json({
-                data: [],
+                rows: [],
                 total: 0,
                 message: 'No se encontraron registros de cambios asociados al usuario.',
+            });
+        }
+    } catch (error) {
+        console.error('Error en la consulta de registros:', error);
+        return res.status(500).json({
+            error: 'Error en el servidor',
+            message: error.message,
+        });
+    }
+};
+
+
+exports.syncRecords = async (req, res) => {
+    const { user_id } = req.params; // user_id obtenido de los parámetros de la solicitud
+    const { sync_form, fromDate, toDate } = req.query;
+
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const offset = (page - 1) * limit;
+
+        const whereCondition = {
+            ...(sync_form ? { sync_form: sync_form } : {}),
+            ...(fromDate
+                ? { createdAt: { [Op.gte]: new Date(`${fromDate}T00:00:00.000Z`) } } // Desde la fecha dada en adelante
+                : {}),
+            ...(toDate
+                ? { createdAt: { [Op.lte]: new Date(`${toDate}T23:59:59.999Z`) } } // Hasta la fecha dada
+                : {}),
+        };
+
+        // Consultar los registros de change_log asociados al user_id
+        const syncLogs = await db.sync_log.findAll({
+            limit: limit,
+            offset: offset,
+            where: whereCondition,
+            order: [['createdAt', 'DESC']],
+        });
+
+        const totalRecords = await db.sync_log.count({
+            where: whereCondition,
+        });
+
+        // Verifica si hay resultados
+        if (syncLogs.length > 0) {
+            return res.status(200).json({
+                rows: syncLogs,
+                total: totalRecords,
+            });
+        } else {
+            return res.status(200).json({
+                rows: [],
+                total: 0,
+                message: 'No se encontraron registros de sincronización asociados al usuario.',
             });
         }
     } catch (error) {

@@ -71,6 +71,22 @@ module.exports = (db) => {
                     where: { user_id: orderInstance.user_id }
                 });
 
+                const credentials = await credential.findOne({
+                    where: { user_id: orderInstance.user_id },
+                });
+
+                if (credentials.order_main !== 1) {
+                    console.log(`La orden ${orderInstance.order_id} no cumple con order_main === 1. No se actualizará.`);
+                    return;
+                }
+
+                const { token_serpi, secret_key_serpi, hook_histoweb } = credentials;
+
+                if (!credentials) {
+                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
+                    return;
+                }
+
                 const skipClientData = clientParam && clientParam.check_client;
 
                 const orderClientNit = clientParam ? clientParam.client_nit : orderInstance.billing_id;
@@ -90,18 +106,10 @@ module.exports = (db) => {
 
 
                 if (!parameters || parameters.main !== 1) {
-                    if (parameters && parameters.main === 2) {
+                    if (parameters && parameters.main === 2 && parameters.active === true) {
 
-                        const credentials = await credential.findOne({
-                            where: { user_id: orderInstance.user_id },
-                        });
+                        console.log('Entra al hook de histoweb');
 
-                        if (!credentials) {
-                            console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
-                            return;
-                        }
-
-                        const { hook_histoweb } = credentials;
                         const url = hook_histoweb;
 
                         console.log('POST A', hook_histoweb);
@@ -127,17 +135,6 @@ module.exports = (db) => {
                     console.log(`No se encontraron items para la orden: ${orderInstance.order_id}`);
                     return;
                 }
-
-                const credentials = await credential.findOne({
-                    where: { user_id: orderInstance.user_id },
-                });
-
-                if (!credentials) {
-                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
-                    return;
-                }
-
-                const { token_serpi, secret_key_serpi } = credentials;
 
                 if (!token_serpi || !secret_key_serpi) {
                     console.error(`Credenciales incompletas para el usuario: ${orderInstance.user_id}`);
@@ -343,6 +340,18 @@ module.exports = (db) => {
                     where: { user_id: orderInstance.user_id }
                 });
 
+                const credentials = await credential.findOne({
+                    where: { user_id: orderInstance.user_id },
+                });
+
+                if (!credentials) {
+                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
+                    return;
+                }
+
+                const { token_serpi, secret_key_serpi, hook_histoweb } = credentials;
+
+
                 const skipClientData = clientParam && clientParam.check_client;
 
                 const orderClientNit = clientParam ? clientParam.client_nit : orderInstance.billing_id;
@@ -354,27 +363,26 @@ module.exports = (db) => {
                     where: { user_id: orderInstance.user_id },
                 });
 
+                if (!parameters || !parameters.active) {
+                    console.log(`No se ejecutará el hook porque el campo 'active' no es true para el usuario ${orderInstance.user_id}`);
+                    return;
+                }
+
                 const syncParameters = await db.sync_parameter.findOne({
                     where: { user_id: orderInstance.user_id },
                 });
 
                 const price_list_serpi = syncParameters ? syncParameters.price_list_serpi : 1
 
-                if (!parameters || parameters.main !== 1) {
-                    if (parameters && parameters.main === 2) {
+                if (!credentials || credentials.order_main !== 1) {
+                    if (credentials && credentials.order_main === 2 && parameters.active === true) {
 
-                        const credentials = await credential.findOne({
-                            where: { user_id: orderInstance.user_id },
-                        });
+                        console.log('Entra al hook de histoweb');
+                        
 
-                        if (!credentials) {
-                            console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
-                            return;
-                        }
-
-                        const { hook_histoweb } = credentials;
                         const url = hook_histoweb;
 
+                        console.log('Url POST Histoweb:', url);
                         console.log('POST A', hook_histoweb);
 
                         axios.post(url)
@@ -399,16 +407,6 @@ module.exports = (db) => {
                     return;
                 }
 
-                const credentials = await credential.findOne({
-                    where: { user_id: orderInstance.user_id },
-                });
-
-                if (!credentials) {
-                    console.error(`No se encontraron credenciales para el usuario: ${orderInstance.user_id}`);
-                    return;
-                }
-
-                const { token_serpi, secret_key_serpi } = credentials;
 
                 if (!token_serpi || !secret_key_serpi) {
                     console.error(`Credenciales incompletas para el usuario: ${orderInstance.user_id}`);

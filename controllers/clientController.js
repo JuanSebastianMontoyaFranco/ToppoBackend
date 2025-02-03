@@ -1,0 +1,59 @@
+const db = require('../models');
+const { Op } = require('sequelize');
+
+exports.list = async (req, res, next) => {
+    const { user_id } = req.params;
+
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const search = req.query.search || '';
+
+        const offset = (page - 1) * limit;
+
+        const searchCondition = search ? {
+            [Op.or]: [
+                { billing_email: { [Op.like]: `%${search}%` } },
+                { billing_first_name: { [Op.like]: `%${search}%` } },
+                { billing_last_name: { [Op.like]: `%${search}%` } }
+
+            ]
+        } : {};
+
+        const whereCondition = {
+            user_id: user_id,
+            ...searchCondition
+        };
+
+        const clients = await db.order.findAndCountAll({
+            limit: limit,
+            offset: offset,
+            where: whereCondition,
+            order: [['createAt', 'DESC']], // Ordenar por fecha de creación descendente
+        });
+
+
+        const totalClients = await db.order.count({
+            where: whereCondition,
+        });
+
+        if (clients.count > 0) {
+            res.status(200).json({
+                rows: clientsWithClient,
+                total: totalClients
+            });
+        } else {
+            res.status(200).send({
+                rows: [],
+                total: 0,
+                message: 'Aún no has agregado clientes.'
+            });
+        }
+    } catch (error) {
+        console.error('Error en la consulta de clientes:', error);
+        return res.status(500).json({
+            error: '¡Error en el servidor!',
+            message: error.message
+        });
+    }
+};

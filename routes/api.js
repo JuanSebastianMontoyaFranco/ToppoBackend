@@ -10,6 +10,9 @@ const productRouter = require('./api/products')
 const priceListRouter = require('./api/priceLists')
 const importRouter = require('./api/imports')
 const syncRouter = require('./api/syncronizations')
+const statisticRouter  = require('./api/statistics')
+const clientRouter  = require('./api/clients')
+
 // Users
 router.use('/user', usersRouter);
 
@@ -42,6 +45,12 @@ router.use('/import', importRouter)
 
 // Syncronization
 router.use('/sync', syncRouter)
+
+// Statistics
+router.use('/statistic', statisticRouter)
+
+// Clients
+router.use('/client', clientRouter)
 
 
 module.exports = router;

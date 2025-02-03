@@ -271,7 +271,7 @@ exports.update = async (req, res) => {
         });
 
         // Buscar y actualizar las variantes relacionadas en la tabla variant
-        const variants = await db.variant.findAll({
+      /*   const variants = await db.variant.findAll({
             where: { product_id: product.id }
         });
 
@@ -289,7 +289,7 @@ exports.update = async (req, res) => {
                     console.log(`Variante con ID ${variant.id} no encontrada.`);
                 }
             }
-        }
+        } */
 
         console.log('Producto y variantes actualizados con éxito.');
         return res.status(200).send({

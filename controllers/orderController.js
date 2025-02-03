@@ -17,6 +17,7 @@ exports.create = async (req, res, next) => {
 
     try {
         const userId = await ordersFunctions.getUserId(req.body.order_status_url);
+        const billing_id = globalFunctions.removeSpecialCharacters(req.body.billing_address.company);
         const transactionId = await ordersFunctions.getTransactionId(req.body.id, req.body.confirmation_number);
         const shipping_total = req.body.shipping_lines?.length
             ? req.body.shipping_lines[0].price
@@ -47,6 +48,29 @@ exports.create = async (req, res, next) => {
         }
         console.log('VALOR DE LA TARJETA REGALO:', giftCardAmount);
 
+
+        let client = await db.client.findOne({ where: { billing_id } });
+
+        if (!client) {
+            // Crear cliente si no existe
+            client = await db.client.create({
+                billing_id,
+                user_id: userId,
+                customer_ip_address: req.body.browser_ip,
+                customer_user: req.body.customer.id,
+                billing_first_name: req.body.billing_address.first_name,
+                billing_last_name: req.body.billing_address.last_name,
+                billing_email: req.body.email,
+                billing_phone: req.body.billing_address.phone,
+                billing_address_1: req.body.billing_address.address1,
+                billing_address_2: req.body.billing_address.address2,
+                billing_city_id: await ordersFunctions.searchCity(req.body.billing_address.city.toUpperCase(), req.body.billing_address.province.toUpperCase(), 'city_id'),
+                billing_city: req.body.billing_address.city,
+                billing_state: globalFunctions.removeSpecialCharacters(req.body.billing_address.province.toUpperCase()),
+                billing_country: req.body.billing_address.country.toUpperCase()
+            });
+        }
+
         const order = await db.order.create({
             order_id: req.body.id,
             user_id: userId,
@@ -64,7 +88,7 @@ exports.create = async (req, res, next) => {
             customer_ip_address: req.body.browser_ip,
             customer_user: req.body.customer.id,
 
-            billing_id: globalFunctions.removeSpecialCharacters(req.body.billing_address.company),
+            billing_id,
             billing_first_name: req.body.billing_address.first_name,
             billing_last_name: req.body.billing_address.last_name,
             billing_email: req.body.email,
@@ -215,7 +239,7 @@ exports.list = async (req, res, next) => {
                 }
             ]
         });
-        
+
 
         const totalOrders = await db.order.count({
             where: whereCondition,

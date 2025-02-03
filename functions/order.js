@@ -47,7 +47,7 @@ exports.searchCity = async (cityName, departmentDesc, returnField) => {
 
 const extractDomain = (url) => {
     console.log('URL que recbe en la funcion:', url);
-    
+
     try {
         // Usar URL constructor para extraer el dominio
         const { hostname } = new URL(url);
@@ -110,7 +110,7 @@ exports.getTransactionId = async (orderId, confirmationNumber) => {
 exports.getVariant = async (sku, userId) => {
 
     console.log('Sku en funcion getVariant:', sku);
-    
+
     try {
         const variant = await db.variant.findOne({
             where: {
@@ -166,7 +166,7 @@ exports.getBranch = async (items, userId) => {
     console.log('Usuario en getBranch', userId);
 
     //console.log('Items en getBranch', items);
-    
+
     try {
         const parameter = await db.order_parameter.findOne({ where: { user_id: userId } });
 
@@ -211,6 +211,5 @@ exports.getCompareAtPrice = async (variantId, userId) => {
         return null; // Manejo de errores, retorna null si hay problemas
     }
 }
-
 
 

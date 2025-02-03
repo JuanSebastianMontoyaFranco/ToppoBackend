@@ -23,7 +23,7 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       sku: {
-        tye: Sequelize.STRING,
+        type: Sequelize.STRING,
       },
       title: {
         type: Sequelize.STRING,

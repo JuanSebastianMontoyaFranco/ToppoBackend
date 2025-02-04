@@ -16,7 +16,6 @@ exports.list = async (req, res, next) => {
                 { billing_email: { [Op.like]: `%${search}%` } },
                 { billing_first_name: { [Op.like]: `%${search}%` } },
                 { billing_last_name: { [Op.like]: `%${search}%` } }
-
             ]
         } : {};
 
@@ -25,26 +24,27 @@ exports.list = async (req, res, next) => {
             ...searchCondition
         };
 
-        const clients = await db.order.findAndCountAll({
+        // Buscar clientes
+        const clients = await db.client.findAll({
             limit: limit,
             offset: offset,
             where: whereCondition,
-            order: [['createAt', 'DESC']], // Ordenar por fecha de creación descendente
+            client: [['createdAt', 'DESC']],
         });
 
-
-        const totalClients = await db.order.count({
+        // Contar el total de registros sin `findAndCountAll`
+        const totalClients = await db.client.count({
             where: whereCondition,
         });
 
-        if (clients.count > 0) {
+        if (clients.length > 0) {
             res.status(200).json({
-                rows: clientsWithClient,
+                rows: clients,
                 total: totalClients
             });
         } else {
             res.status(200).send({
-                rows: [],
+                rows: null,
                 total: 0,
                 message: 'Aún no has agregado clientes.'
             });

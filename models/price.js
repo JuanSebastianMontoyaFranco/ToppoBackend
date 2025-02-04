@@ -7,7 +7,6 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             price.belongsTo(models.variant, { foreignKey: 'variant_id' });
             price.belongsTo(models.price_list, { foreignKey: 'price_list_id' });
-
         }
     };
     price.init({

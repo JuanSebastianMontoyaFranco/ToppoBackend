@@ -32,6 +32,14 @@ exports.create = async (req, res, next) => {
                 ? req.body.billing_address.address1 === req.body.shipping_address.address1
                 : true);
 
+        const defaultPriceList = await db.price_list.findOne({
+            where: { user_id: userId, default: true },
+        });
+
+        if (!defaultPriceList) {
+            throw new Error("No se encontró una lista de precios por defecto.");
+        }
+
         if (isSameAddress) {
             console.log("Las direcciones son iguales.");
         } else {
@@ -56,6 +64,9 @@ exports.create = async (req, res, next) => {
             client = await db.client.create({
                 billing_id,
                 user_id: userId,
+                price_list_id: defaultPriceList.id,
+                seller_id: 0,
+                role: 'client',
                 customer_ip_address: req.body.browser_ip,
                 customer_user: req.body.customer.id,
                 billing_first_name: req.body.billing_address.first_name,
@@ -278,7 +289,6 @@ exports.list = async (req, res, next) => {
 
 exports.detail = async (req, res, next) => {
     const order_id = req.query.order_id;
-    console.log(order_id);
 
     try {
         const order = await db.order.findAndCountAll({

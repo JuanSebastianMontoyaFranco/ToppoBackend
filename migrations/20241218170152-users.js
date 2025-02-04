@@ -14,6 +14,9 @@ module.exports = {
         allowNull: false,
         type: Sequelize.STRING(100)
       },
+      identification: {
+        type: Sequelize.STRING(50)
+      },
       last_name: {
         type: Sequelize.STRING(100)
       },

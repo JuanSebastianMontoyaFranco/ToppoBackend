@@ -20,6 +20,24 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      price_list_id: {
+        type: Sequelize.INTEGER,
+        references: {
+          model: 'price_lists',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      seller_id: {
+        type: Sequelize.INTEGER,
+      },
+      role: {
+        type: Sequelize.STRING,
+      },
+      password: {
+        type: Sequelize.STRING,
+      },
       customer_ip_address: {
         type: Sequelize.STRING,
       },

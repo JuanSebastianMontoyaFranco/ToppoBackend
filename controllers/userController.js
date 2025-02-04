@@ -89,10 +89,47 @@ exports.create = async (req, res, next) => {
     } catch (error) {
         return res.status(500).send({
             message: '¡Error en el servidor!',
-            error: error.message
+            error: error
         });
     }
 };
+
+
+exports.update = async (req, res, next) => {
+    const user_id = req.params.user_id;
+
+    try {
+        const user = await db.user.update({
+            identification: req.body.identification,
+            first_name: req.body.first_name,
+            last_name: req.body.last_name,
+            email: req.body.email,
+            phone: req.body.phone,
+            address: req.body.address,
+            department: req.body.department,
+            city: req.body.city,
+        }, {
+            where: {
+                id: user_id
+            },
+        });
+
+        if (user[0] === 0) {
+            return res.status(404).send({
+                message: 'Usuario no encontrado.'
+            });
+        }
+
+        res.status(200).send({
+            message: 'Usuario actualizado con éxito.'
+        });
+    } catch (error) {
+        res.status(500).send({
+            message: '¡Error en el servidor!',
+            error: error
+        });
+    }
+}
 
 
 exports.login = async (req, res, next) => {
@@ -124,6 +161,7 @@ exports.login = async (req, res, next) => {
                     token: token,
                     user: {
                         id: user.id,
+                        identification: user.identification,
                         first_name: user.first_name,
                         last_name: user.last_name,
                         email: user.email,
@@ -153,7 +191,7 @@ exports.login = async (req, res, next) => {
         console.error('Error en el servidor:', error);
         return res.status(500).send({
             message: '¡Error en el servidor!',
-            error: error.message
+            error: error
         });
     }
 };

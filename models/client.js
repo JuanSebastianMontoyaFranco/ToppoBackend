@@ -5,10 +5,16 @@ module.exports = (sequelize, DataTypes) => {
     class client extends Model {
         static associate(models) {
             client.belongsTo(models.user, { foreignKey: 'user_id' });
+            client.belongsTo(models.price_list, { foreignKey: 'price_list_id' });
         }
     }
     client.init(
         {
+            user_id: DataTypes.INTEGER,
+            price_list_id: DataTypes.INTEGER,
+            seller_id: DataTypes.INTEGER,
+            role: DataTypes.STRING,
+            password: DataTypes.STRING,
             customer_ip_address: DataTypes.STRING, // Ip del usuario
             customer_user: DataTypes.BIGINT, // Id del usuario
             billing_id: DataTypes.STRING, // Documento de identidad del usuario de facturacion

@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             price_list.belongsTo(models.user, { foreignKey: 'user_id' });
             price_list.hasMany(models.price, { foreignKey: 'price_list_id' });
             price_list.hasMany(models.condition, { foreignKey: 'price_list_id' });
+            price_list.hasMany(models.client, { foreignKey: 'price_list_id' });
         }
     };
     price_list.init({

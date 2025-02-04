@@ -93,7 +93,7 @@ async function createOrUpdateCities(cityData) {
 exports.list = async (req, res, next) => {
   try {
     const result = await db.all_city.findAll({
-      attributes: ['department_desc', 'city_desc'],
+      attributes: ['department_desc', 'city_desc_2',],
       raw: true // Para obtener resultados como objetos de JavaScript puros
     });
     if (result.length !== 0) {
@@ -101,7 +101,7 @@ exports.list = async (req, res, next) => {
       const citiesByDepartment = {};
       result.forEach(city => {
         const department = city.department_desc;
-        const cityName = city.city_desc; // Extraer el nombre de la ciudad
+        const cityName = city.city_desc_2; // Extraer el nombre de la ciudad
         const cityData = { city: cityName };
         if (!citiesByDepartment[department]) {
           citiesByDepartment[department] = [cityData];

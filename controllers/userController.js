@@ -131,27 +131,35 @@ exports.update = async (req, res, next) => {
     }
 }
 
-
 exports.login = async (req, res, next) => {
     const { email, password } = req.body;
 
     if (!email) {
         console.log('Error en la autenticación: El email está vacío');
-        return res.status(200).json({
-            message: 'El email es requerido.'
-        });
+        return res.status(200).json({ message: 'El email es requerido.' });
     }
 
     if (!password) {
         console.log('Error en la autenticación: La contraseña está vacía.');
-        return res.status(200).json({
-            message: 'La contraseña es requerida.'
-        });
+        return res.status(200).json({ message: 'La contraseña es requerida.' });
     }
 
     try {
-        const user = await db.user.findOne({ where: { email: email } });
+        let user = await db.user.findOne({ where: { email: email } });
+        let isClient = false; // Bandera para saber si es un cliente
+
+        if (!user) {
+            user = await db.client.findOne({ where: { billing_email: email } }); // Buscar en la tabla client si no está en user
+            isClient = !!user; // Si user es encontrado en client, isClient será true
+        }
+
         if (user) {
+            // En clientes, puede que no haya un campo "password", por lo que evitamos errores
+            if (!user.password || typeof user.password !== 'string') {
+                console.log('Error en la autenticación: Contraseña no encontrada o inválida.');
+                return res.status(500).json({ message: 'Contraseña no encontrada o inválida' });
+            }
+
             const passwordIsValid = bcrypt.compareSync(password, user.password);
             if (passwordIsValid) {
                 const token = await tokenServices.encode(user);
@@ -161,31 +169,27 @@ exports.login = async (req, res, next) => {
                     token: token,
                     user: {
                         id: user.id,
-                        identification: user.identification,
-                        first_name: user.first_name,
-                        last_name: user.last_name,
-                        email: user.email,
-                        phone: user.phone,
-                        address: user.address,
-                        department: user.department,
-                        city: user.city,
-                        role: user.role,
-                        wholesale: user.wholesale,
-                        confirmed: user.confirmed,
-                        image_url: user.image_url
+                        identification: isClient ? user.billing_id : user.identification,
+                        first_name: isClient ? user.billing_first_name : user.first_name,
+                        last_name: isClient ? user.billing_last_name : user.last_name, // Si client no tiene last_name, se deja vacío
+                        email: isClient ? user.billing_email : user.email,
+                        phone: isClient ? user.billing_phone : user.phone,
+                        address: isClient ? user.billing_address_1 : user.address,
+                        department: isClient ? user.billing_state : user.department,
+                        city: isClient ? user.billing_city : user.city,
+                        role: isClient ? user.role : user.role, // Si es un cliente, su rol será 'client'
+                        wholesale: isClient ? false : user.wholesale, // Asumimos que un cliente no es mayorista
+                        confirmed: isClient ? true : user.confirmed, // Si un cliente no tiene este campo, asumimos que está confirmado
+                        image_url: isClient ? null : user.image_url // Si el cliente no tiene imagen, enviamos null
                     }
                 });
             } else {
                 console.log('Error en la autenticación: Contraseña incorrecta.');
-                return res.status(500).json({
-                    message: 'Contraseña incorrecta'
-                });
+                return res.status(500).json({ message: 'Contraseña incorrecta' });
             }
         } else {
             console.log('Error en la autenticación: Usuario no encontrado.');
-            return res.status(500).json({
-                message: 'Usuario no encontrado.'
-            });
+            return res.status(500).json({ message: 'Usuario no encontrado.' });
         }
     } catch (error) {
         console.error('Error en el servidor:', error);

@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             variant.belongsTo(models.product, { foreignKey: 'product_id' });
 
             variant.hasMany(models.price, { foreignKey: 'variant_id' });
+            variant.hasMany(models.variant_image, { foreignKey: 'variant_id' });  // Relación con las imágenes
 
         }
     };
@@ -29,7 +30,6 @@ module.exports = (sequelize, DataTypes) => {
         tax_percentage: DataTypes.FLOAT,
         weight: DataTypes.FLOAT,
         weight_unit: DataTypes.STRING,
-        image_url: DataTypes.STRING,
     }, {
         sequelize,
         modelName: 'variant',

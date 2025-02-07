@@ -86,6 +86,10 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
                         ],
                         required: false,
                     },
+                    {
+                        model: db.variant_image,
+                        required: false,
+                    },
                 ],
             },
         ];
@@ -155,14 +159,13 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
         const formattedProducts = products.map(product => {
             //console.log('Tipo de channel:', typeof channel, 'Valor de channel:', channel);
             //console.log('Producto:', product);
-            
+
             const channelProduct = product.channel_products?.find(cp => cp.channel_id === channel);
 
             //console.log('Channel Products:', product.channel_products);
 
             console.log(product.variants);
-            
-            
+
             return {
                 id: product.id,
                 ecommerce_id: parseInt(channelProduct?.ecommerce_id) || null,
@@ -179,7 +182,7 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
                     );
 
                     console.log(defaultPrice);
-                    
+
                     return {
                         variant_id: variant.id,
                         sku: variant.sku,
@@ -197,7 +200,7 @@ async function getProducts({ userId, channel, state, page, limit, search, produc
                         tax_percentage: variant.tax_percentage,
                         weight: variant.weight,
                         weight_unit: variant.weight_unit,
-                        image_url: variant.image_url,
+                        images: variant.variant_images.map(image => image.image_url), // Agregado para obtener imágenes
                         price: defaultPrice ? defaultPrice.price : null,
                         compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
                     };
@@ -271,25 +274,25 @@ exports.update = async (req, res) => {
         });
 
         // Buscar y actualizar las variantes relacionadas en la tabla variant
-      /*   const variants = await db.variant.findAll({
-            where: { product_id: product.id }
-        });
-
-        if (variants && Array.isArray(req.body.variants)) {
-            for (const variant of req.body.variants) {
-                // Buscar la variante existente por ID
-                const existingVariant = variants.find(v => v.id === variant.id);
-
-                if (existingVariant) {
-                    // Actualizar el campo barcode de la variante
-                    await existingVariant.update({
-                        barcode: variant.barcode,
-                    });
-                } else {
-                    console.log(`Variante con ID ${variant.id} no encontrada.`);
-                }
-            }
-        } */
+        /*   const variants = await db.variant.findAll({
+              where: { product_id: product.id }
+          });
+  
+          if (variants && Array.isArray(req.body.variants)) {
+              for (const variant of req.body.variants) {
+                  // Buscar la variante existente por ID
+                  const existingVariant = variants.find(v => v.id === variant.id);
+  
+                  if (existingVariant) {
+                      // Actualizar el campo barcode de la variante
+                      await existingVariant.update({
+                          barcode: variant.barcode,
+                      });
+                  } else {
+                      console.log(`Variante con ID ${variant.id} no encontrada.`);
+                  }
+              }
+          } */
 
         console.log('Producto y variantes actualizados con éxito.');
         return res.status(200).send({
@@ -328,6 +331,10 @@ exports.detail = async (req, res, next) => {
                         ],
                         required: false,
                     },
+                    {
+                        model: db.variant_image,
+                        required: false,
+                    },
                 ],
             }],
         });
@@ -351,5 +358,120 @@ exports.detail = async (req, res, next) => {
     }
 }
 
+async function getCatalog({ priceListId, page, limit, search, productType, status }) {
+    try {
+        // Obtener la lista de precios específica
+        const priceList = await db.price_list.findOne({
+            where: { id: priceListId },
+        });
+
+        if (!priceList) {
+            throw new Error("No se encontró una lista de precios.");
+        }
+
+        const whereConditions = {};
+
+        // Agregar filtros opcionales
+        if (search) {
+            whereConditions[db.Sequelize.Op.or] = [
+                { title: { [db.Sequelize.Op.like]: `%${search}%` } }
+            ];
+        }
+
+        if (productType) {
+            whereConditions.product_type = productType;
+        }
+
+        if (status) {
+            whereConditions.status = status;
+        }
+
+        const offset = (page - 1) * limit;
+
+        // Buscar productos con sus variantes y precios asociados a la lista de precios
+        const { rows: products, count: total } = await db.product.findAndCountAll({
+            where: whereConditions,
+            include: [
+                {
+                    model: db.variant,
+                    required: true, // Asegura que se traigan solo productos con variantes
+                    include: [
+                        {
+                            model: db.price,
+                            required: true, // Asegura que solo traiga precios que existan en la lista de precios
+                            where: { price_list_id: priceList.id },
+                        },
+                    ],
+                },
+            ],
+            limit,
+            offset,
+        });
+
+        if (!products.length) {
+            return { rows: [], total: 0 };
+        }
+
+        const formattedProducts = products.map(product => ({
+            id: product.id,
+            title: product.title,
+            description: product.description,
+            vendor: product.vendor,
+            product_type: product.product_type,
+            template: product.template,
+            tags: product.tags,
+            status: product.status,
+            variants: product.variants.map(variant => {
+                const defaultPrice = variant.prices.length > 0 ? variant.prices[0] : null;
+                return {
+                    variant_id: variant.id,
+                    sku: variant.sku,
+                    title: variant.title,
+                    option_1: variant.option_1,
+                    option_2: variant.option_2,
+                    option_3: variant.option_3,
+                    barcode: variant.barcode,
+                    requires_shipping: variant.requires_shipping,
+                    inventory_policy: variant.inventory_policy,
+                    inventory_management: variant.inventory_management,
+                    inventory_quantity: variant.inventory_quantity,
+                    fullfillment_service: variant.fullfillment_service,
+                    taxable: variant.taxable,
+                    tax_percentage: variant.tax_percentage,
+                    weight: variant.weight,
+                    weight_unit: variant.weight_unit,
+                    image_url: variant.image_url,
+                    price: defaultPrice ? defaultPrice.price : null,
+                    compare_at_price: defaultPrice ? defaultPrice.compare_at_price : null,
+                };
+            }),
+        }));
+
+        return { rows: formattedProducts, total };
+    } catch (error) {
+        console.error("Error al obtener productos:", error);
+        throw error;
+    }
+}
+
+
+
+exports.catalog = async (req, res) => {
+    const priceListId = req.params.price_list_id; // Usar query en lugar de params
+    const page = parseInt(req.query.page, 10) || 1; // Página predeterminada
+    const limit = parseInt(req.query.limit, 10) || 10; // Límite predeterminado
+    const search = req.query.search || null;
+    const productType = req.query.product_type || null;
+    const status = req.query.status || null;
+
+    try {
+        const result = await getCatalog({ priceListId, page, limit, search, productType, status });
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error('Error al listar productos:', error.message);
+        return res.status(500).json({ message: 'Hubo un error al listar los productos.' });
+    }
+};
 
 module.exports.getProducts = getProducts;
+module.exports.getCatalog = getCatalog;

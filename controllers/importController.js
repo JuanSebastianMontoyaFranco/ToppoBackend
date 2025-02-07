@@ -1184,6 +1184,99 @@ exports.importShopify = async (req, res, next) => {
         res.status(500).json({ error: 'Error interno del servidor.' });
     }
 };
+exports.updateVariantImages = async (req, res) => {
+    console.log('Llamando a la función de actualizar imágenes de variantes desde Shopify');
+    
+    const { user_id } = req.params || req.body;
+    
+    try {
+        // Buscar credenciales de Shopify para el usuario
+        const credentials = await db.credential.findOne({ where: { user_id } });
+
+        if (!credentials) {
+            return res.status(404).json({ error: 'No se encontraron credenciales para el usuario especificado.' });
+        }
+
+        const { shopify_domain, token_shopify } = credentials;
+
+        if (!shopify_domain || !token_shopify) {
+            return res.status(400).json({ error: 'Las credenciales de Shopify están incompletas.' });
+        }
+
+        let shopifyApiUrl = `https://${shopify_domain}.myshopify.com/admin/api/2023-07/products.json`;
+        const productsFromShopify = [];
+
+        console.log(shopifyApiUrl);
+        
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        while (shopifyApiUrl) {
+            try {
+                const response = await axios.get(shopifyApiUrl, {
+                    headers: {
+                        'X-Shopify-Access-Token': token_shopify
+                    },
+                });
+    
+                if (response.data && response.data.products) {
+                    productsFromShopify.push(...response.data.products);
+                }
+    
+                const linkHeader = response.headers['link'];
+                const nextLinkMatch = linkHeader && linkHeader.match(/<([^>]+)>; rel="next"/);
+                shopifyApiUrl = nextLinkMatch ? nextLinkMatch[1] : null;
+    
+                await delay(500);
+            } catch (error) {
+                console.error('Error al procesar la página:', error.message);
+                break;
+            }
+        }
+
+        if (!productsFromShopify.length) {
+            return res.status(200).json({ message: 'No se encontraron productos en Shopify.' });
+        }
+
+        for (const shopifyProduct of productsFromShopify) {
+            for (const shopifyVariant of shopifyProduct.variants) {
+                const existingVariant = await db.variant.findOne({
+                    where: { sku: shopifyVariant.sku, user_id },
+                    include: [db.variant_image]
+                });
+
+                if (existingVariant) {
+                    await db.variant_image.destroy({ where: { variant_id: existingVariant.id } });
+                    
+                    let imageUrl = null;
+
+                    // Intentar obtener la imagen de la variante
+                    if (shopifyVariant.image_id) {
+                        imageUrl = shopifyProduct.images.find(img => img.id === shopifyVariant.image_id)?.src;
+                    }
+
+                    // Si la variante no tiene imagen, usar la imagen principal del producto
+                    if (!imageUrl && shopifyProduct.image) {
+                        imageUrl = shopifyProduct.image.src;
+                    }
+
+                    // Si se encontró una imagen, guardarla en la base de datos
+                    if (imageUrl) {
+                        await db.variant_image.create({
+                            variant_id: existingVariant.id,
+                            image_url: imageUrl
+                        });
+                    }
+                }
+            }
+        }
+
+        res.status(200).json({ message: 'Imágenes de variantes actualizadas correctamente.' });
+    } catch (error) {
+        console.error('Error al actualizar imágenes de variantes:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+};
+
 exports.autoImport = async function () {
     console.log('Entra en la función de autoimportar');
 

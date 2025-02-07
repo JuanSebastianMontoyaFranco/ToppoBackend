@@ -100,17 +100,49 @@ exports.list = async (req, res, next) => {
     }
 };
 
-
 exports.detail = async (req, res, next) => {
     const client_id = req.query.client_id;
 
     try {
+        // Buscar cliente con la relación a price_list
         const client = await db.client.findAndCountAll({
-            where: { id: client_id }
+            where: { id: client_id },
+            include: [
+                {
+                    model: db.price_list,
+                    as: 'price_list',
+                    attributes: ['name']
+                }
+            ]
         });
+
         if (client.count > 0) {
+            // Obtener los datos y agregar seller_name manualmente
+            const rows = await Promise.all(client.rows.map(async (c) => {
+                let seller_name = null;
+
+                // Si seller_id existe, buscar el nombre en la base de datos
+                if (c.seller_id) {
+                    const seller = await db.client.findOne({
+                        where: { id: c.seller_id },
+                        attributes: ['billing_first_name']
+                    });
+
+                    seller_name = seller ? seller.billing_first_name : null;
+                }
+
+                console.log(c.seller_id);
+
+
+                return {
+                    ...c.toJSON(),
+                    seller_name,
+                    price_list_name: c.price_list ? c.price_list.name : null
+                };
+            }));
+
             res.status(200).json({
-                rows: client.rows,
+                rows,
                 total: client.count
             });
         } else {
@@ -126,5 +158,4 @@ exports.detail = async (req, res, next) => {
         });
         next(error);
     }
-}
-
+};
